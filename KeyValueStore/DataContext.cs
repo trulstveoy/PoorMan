@@ -78,7 +78,7 @@ namespace PoorMan.KeyValueStore
             });
         }
 
-        public T Read<T>(Guid id)
+        public T Read<T>(object id)
         {
             ValidateId(id);
             var result = SqlQuery(command =>
@@ -127,19 +127,24 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        public void AppendChild(Guid parentId, Guid childId)
+        public void AppendChild<TP, TC>(object parentId, object childId)
         {
+            ValidateId(parentId);
+            ValidateId(childId);
             SqlAction(command =>
             {
-                command.CommandText = "INSERT INTO Relation (Parent, Child) VALUES(@parent, @child)";
+                command.CommandText = "INSERT INTO Relation (Parent, ParentType, Child, ChildType, LastUpdated) VALUES(@parent, @parentType, @child, @childType, GETDATE())";
                 command.Parameters.AddWithValue("@parent", parentId);
+                command.Parameters.AddWithValue("@parentType", typeof(TP).FullName);
                 command.Parameters.AddWithValue("@child", childId);
+                command.Parameters.AddWithValue("@childType", typeof(TC).FullName);
                 command.ExecuteNonQuery();
             });
         }
 
-        public List<T> GetChildren<T>(Guid parentId)
+        public List<T> GetChildren<T>(object parentId)
         {
+            ValidateId(parentId);
             const string query = @"SELECT Value, Type FROM KeyValueStore k
                                   JOIN Relation r on r.Child = k.Id 
                                   AND r.Parent = @parent";

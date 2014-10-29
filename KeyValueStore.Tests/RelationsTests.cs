@@ -25,7 +25,7 @@ namespace KeyValueStore.Tests
             {
                 var productId = Guid.NewGuid();
                 context.Create(productId, new Product() { Text = "child" });
-                context.AppendChild(orderId, productId);
+                context.AppendChild<Order, Product>(orderId, productId);
             }
 
 

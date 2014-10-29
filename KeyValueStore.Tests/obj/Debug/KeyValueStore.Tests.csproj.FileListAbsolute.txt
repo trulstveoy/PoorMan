@@ -1,9 +1,0 @@
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\bin\Debug\KeyValueStore.Tests.dll
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\bin\Debug\KeyValueStore.Tests.pdb
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\bin\Debug\PoorMan.KeyValueStore.dll
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\bin\Debug\Newtonsoft.Json.dll
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\bin\Debug\PoorMan.KeyValueStore.pdb
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\bin\Debug\Newtonsoft.Json.xml
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\obj\Debug\KeyValueStore.Tests.csprojResolveAssemblyReference.cache
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\obj\Debug\KeyValueStore.Tests.dll
-C:\Users\trulstveoy\Documents\GitHub\PoorMan\KeyValueStore.Tests\obj\Debug\KeyValueStore.Tests.pdb
