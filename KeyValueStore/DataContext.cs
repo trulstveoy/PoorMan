@@ -9,12 +9,15 @@ namespace PoorMan.KeyValueStore
 {
     public class DataContext
     {
+        private readonly Settings _settings = new Settings();
         private readonly string _connectionstring;
 
         public DataContext(string connectionstring)
         {
             _connectionstring = connectionstring;
         }
+
+        public Settings Settings { get { return _settings; }  }
         
         public void EnsureNewDatabase()
         {
@@ -51,7 +54,7 @@ namespace PoorMan.KeyValueStore
         public void Create<T>(object id, T document)
         {
             ValidateId(id);
-            var json = JsonConvert.SerializeObject(document);
+            var json = JsonConvert.SerializeObject(document, Settings.JsonSerializerSettings);
 
             SqlAction(command =>
             {
@@ -66,7 +69,7 @@ namespace PoorMan.KeyValueStore
         public void Update<T>(object id, T document)
         {
             ValidateId(id);
-            var json = JsonConvert.SerializeObject(document);
+            var json = JsonConvert.SerializeObject(document, Settings.JsonSerializerSettings);
 
             SqlAction(command =>
             {
