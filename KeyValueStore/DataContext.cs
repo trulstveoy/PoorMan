@@ -51,9 +51,16 @@ namespace PoorMan.KeyValueStore
             }
         }
 
+        private void ValidateDocument<T>(T document)
+        {
+            if(document == null)
+                throw new InvalidOperationException("Document cannot be null");
+        }
+
         public void Create<T>(object id, T document)
         {
             ValidateId(id);
+            ValidateDocument(document);
             var json = JsonConvert.SerializeObject(document, Settings.JsonSerializerSettings);
 
             SqlAction(command =>
@@ -61,7 +68,7 @@ namespace PoorMan.KeyValueStore
                 command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, GETDATE())";
                 command.Parameters.AddWithValue("@id", id);
                 command.Parameters.AddWithValue("@value", json);
-                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                command.Parameters.AddWithValue("@type", document.GetType().FullName);
                 command.ExecuteNonQuery();
             });
         }
@@ -69,6 +76,7 @@ namespace PoorMan.KeyValueStore
         public void Update<T>(object id, T document)
         {
             ValidateId(id);
+            ValidateDocument(document);
             var json = JsonConvert.SerializeObject(document, Settings.JsonSerializerSettings);
 
             SqlAction(command =>
@@ -76,7 +84,7 @@ namespace PoorMan.KeyValueStore
                 command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = GETDATE() WHERE Id = @id AND type = @type";
                 command.Parameters.AddWithValue("@id", id);
                 command.Parameters.AddWithValue("@value", json);
-                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                command.Parameters.AddWithValue("@type", document.GetType().FullName);
                 command.ExecuteNonQuery();
             });
         }

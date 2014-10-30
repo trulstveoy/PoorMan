@@ -50,7 +50,25 @@ namespace KeyValueStore.Tests
 
             var result = datacontext.Read<Order>(id);
             Assert.AreEqual("Def", result.Text);
+        }
 
+        [TestMethod]
+        public void Interfaces()
+        {
+            var datacontext = new DataContext(Connectionstring);
+            datacontext.EnsureNewDatabase();
+
+            var id = Guid.NewGuid();
+
+            IProduct product = new Product {Text = "abc"};
+            datacontext.Create(id, product);
+
+            Product product2 = new Product { Text = "def" };
+            datacontext.Update(id, product2);
+
+            var result = datacontext.Read<Product>(id);
+
+            Assert.AreEqual("def", result.Text);
         }
     }
 }
