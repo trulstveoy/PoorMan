@@ -85,5 +85,19 @@ namespace KeyValueStore.Tests
             var products = datacontext.ReadAll<Product>();
             Assert.IsTrue(products.All(x => new[] {"abc", "def", "ghi"}.Contains(x.Text)));
         }
+
+        [TestMethod]
+        public void Delete()
+        {
+            var datacontext = new DataContext(Connectionstring);
+            datacontext.EnsureNewDatabase();
+
+            var id = Guid.NewGuid();
+            datacontext.Create(id, new Product{ Text = "abc"});
+
+            datacontext.Delete<Product>(id);
+
+            Assert.IsNull(datacontext.Read<Product>(id));
+        }
     }
 }

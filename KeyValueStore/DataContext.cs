@@ -202,5 +202,18 @@ namespace PoorMan.KeyValueStore
 
             return result.Select(JsonConvert.DeserializeObject<T>).ToList();
         }
+
+        public void Delete<T>(Guid id)
+        {
+            ValidateId(id);
+            
+            SqlAction(command =>
+            {
+                command.CommandText = "DELETE FROM KeyValueStore WHERE Id = @id and Type = @type";
+                command.Parameters.AddWithValue("@id", id);
+                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                command.ExecuteNonQuery();
+            });
+        }
     }
 }
