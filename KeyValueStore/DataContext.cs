@@ -166,7 +166,6 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@parent", parentId);
                 var reader = command.ExecuteReader();
 
-
                 var list = new List<Tuple<string, string>>();
                 while (reader.Read())
                 {
@@ -181,6 +180,27 @@ namespace PoorMan.KeyValueStore
             });
 
             return result.Select(x => JsonConvert.DeserializeObject<T>(x.Value)).ToList();
+        }
+
+        public List<T> ReadAll<T>()
+        {
+            var result = SqlQuery(command =>
+            {
+                command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE type = @type";
+                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                var reader = command.ExecuteReader();
+
+
+                var values = new List<string>();
+                while (reader.Read())
+                {
+                    values.Add(reader.GetString(reader.GetOrdinal("Value")));                        
+                }
+
+                return values;
+            });
+
+            return result.Select(JsonConvert.DeserializeObject<T>).ToList();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using KeyValueStore.Tests.Dto;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PoorMan.KeyValueStore;
@@ -69,6 +70,20 @@ namespace KeyValueStore.Tests
             var result = datacontext.Read<Product>(id);
 
             Assert.AreEqual("def", result.Text);
+        }
+
+        [TestMethod]
+        public void ReadAll()
+        {
+            var datacontext = new DataContext(Connectionstring);
+            datacontext.EnsureNewDatabase();
+            
+            datacontext.Create(Guid.NewGuid(), new Product {Text = "abc"});
+            datacontext.Create(Guid.NewGuid(), new Product {Text = "def"});
+            datacontext.Create(Guid.NewGuid(), new Product {Text = "ghi"});
+
+            var products = datacontext.ReadAll<Product>();
+            Assert.IsTrue(products.All(x => new[] {"abc", "def", "ghi"}.Contains(x.Text)));
         }
     }
 }
