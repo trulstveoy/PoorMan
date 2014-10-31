@@ -30,21 +30,24 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ChildrenAndInheritance()
         {
-            //var datacontext = new DataContext(Constants.Connectionstring);
-            //datacontext.EnsureNewDatabase();
+            var datacontext = new DataContext(Constants.Connectionstring);
+            datacontext.EnsureNewDatabase();
 
-            //var id = Guid.NewGuid();
-            //datacontext.Create(id, new Order());
+            var id = Guid.NewGuid();
+            datacontext.Create(id, new Order());
 
-            //var p1 = Guid.NewGuid();
-            //datacontext.Create(p1, new ProductA {Text = "abc", ValueA = "va"});
-            //var p2 = Guid.NewGuid();
-            //datacontext.Create(p2, new ProductB {Text = "abc", ValueB = "vb"});
+            var p1 = Guid.NewGuid();
+            datacontext.Create(p1, new ProductA { Text = "abc", ValueA = "va" });
+            var p2 = Guid.NewGuid();
+            datacontext.Create(p2, new ProductB { Text = "abc", ValueB = "vb" });
 
-            //datacontext.AppendChild<Order, ProductA>(id, p1);
-            //datacontext.AppendChild<Order, ProductA>(id, p2);
+            datacontext.AppendChild<Order, ProductA>(id, p1);
+            datacontext.AppendChild<Order, ProductB>(id, p2);
 
-            //var children = datacontext.GetChildren<IProduct>(id);
+            var children = datacontext.GetChildren<IProduct>(id);
+            Assert.AreEqual(2, children.Count);
+            var children2 = datacontext.GetChildren<Product>(id);
+            Assert.AreEqual(2, children2.Count);
         }
     }
 }

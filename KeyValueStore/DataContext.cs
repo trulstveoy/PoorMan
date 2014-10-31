@@ -68,9 +68,10 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        private T Deserialize<T>(XmlReader reader)
+        private T Deserialize<T>(XmlReader reader, Type persistedType = null)
         {
-            var serializer = new XmlSerializer(typeof (T), CreateOverrides(typeof(T)));
+            var serializedType = persistedType ?? typeof (T);
+            var serializer = new XmlSerializer(serializedType, CreateOverrides(serializedType));
             return (T)serializer.Deserialize(reader);
         }
 
@@ -85,7 +86,7 @@ namespace PoorMan.KeyValueStore
                     command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", document.GetType().FullName);
+                    command.Parameters.AddWithValue("@type", GetName(document.GetType()));
                     command.ExecuteNonQuery();
                 }));
         }
@@ -101,7 +102,7 @@ namespace PoorMan.KeyValueStore
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", document.GetType().FullName);
+                    command.Parameters.AddWithValue("@type", GetName(document.GetType()));
                     command.ExecuteNonQuery();
                 }
             ));
@@ -114,7 +115,7 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
                 command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                command.Parameters.AddWithValue("@type", GetName(typeof(T)));
                 var reader = command.ExecuteReader();
                 if (!reader.Read())
                     return null;
@@ -164,9 +165,9 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "INSERT INTO Relation (Parent, ParentType, Child, ChildType, LastUpdated) VALUES(@parent, @parentType, @child, @childType, SYSDATETIME())";
                 command.Parameters.AddWithValue("@parent", parentId);
-                command.Parameters.AddWithValue("@parentType", typeof(TP).FullName);
+                command.Parameters.AddWithValue("@parentType", typeof(TP).AssemblyQualifiedName);
                 command.Parameters.AddWithValue("@child", childId);
-                command.Parameters.AddWithValue("@childType", typeof(TC).FullName);
+                command.Parameters.AddWithValue("@childType", typeof(TC).AssemblyQualifiedName);
                 command.ExecuteNonQuery();
             });
         }
@@ -179,9 +180,9 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "DELETE FROM Relation WHERE Parent = @parent AND ParentType = @parentType AND Child = @child AND ChildType = @childType";
                 command.Parameters.AddWithValue("@parent", parentId);
-                command.Parameters.AddWithValue("@parentType", typeof(TP).FullName);
+                command.Parameters.AddWithValue("@parentType", typeof(TP).AssemblyQualifiedName);
                 command.Parameters.AddWithValue("@child", childId);
-                command.Parameters.AddWithValue("@childType", typeof(TC).FullName);
+                command.Parameters.AddWithValue("@childType", typeof(TC).AssemblyQualifiedName);
                 command.ExecuteNonQuery();
             });
         }
@@ -212,7 +213,7 @@ namespace PoorMan.KeyValueStore
                 }).ToList();
             });
 
-            return result.Select(x => Deserialize<T>(x.Value)).ToList();
+            return result.Select(x => Deserialize<T>(x.Value, Type.GetType(x.Type))).ToList();
         }
 
         public List<T> ReadAll<T>()
@@ -220,7 +221,7 @@ namespace PoorMan.KeyValueStore
             var result = SqlQuery(command =>
             {
                 command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE type = @type";
-                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                command.Parameters.AddWithValue("@type", GetName(typeof(T)));
                 var reader = command.ExecuteReader();
 
                 var values = new List<XmlReader>();
@@ -232,7 +233,7 @@ namespace PoorMan.KeyValueStore
                 return values;
             });
 
-            return result.Select(Deserialize<T>).ToList();
+            return result.Select(x => Deserialize<T>(x)).ToList();
         }
 
         public void Delete<T>(object id)
@@ -243,7 +244,7 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "DELETE FROM KeyValueStore WHERE Id = @id and Type = @type";
                 command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", typeof(T).FullName);
+                command.Parameters.AddWithValue("@type", GetName(typeof(T)));
                 command.ExecuteNonQuery();
             });
         }
@@ -260,6 +261,11 @@ namespace PoorMan.KeyValueStore
             }
 
             return overrides;
+        }
+
+        private string GetName(Type type)
+        {
+            return string.Format("{0}, {1}", type.FullName, type.Assembly.FullName.Split(',')[0]);
         }
     }
 }
