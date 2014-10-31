@@ -37,7 +37,7 @@ namespace LoadTests
 
         private static List<Order> GetOrders()
         {
-            return Enumerable.Range(0, 1000).Select(x => new Order() {Text = GetText()}).ToList();
+            return Enumerable.Range(0, 10000).Select(x => new Order() {Text = GetText()}).ToList();
         }
 
         private static string GetText()

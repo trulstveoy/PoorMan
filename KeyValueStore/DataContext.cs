@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -13,7 +14,7 @@ namespace PoorMan.KeyValueStore
     public class DataContext
     {
         private readonly string _connectionstring;
-
+       
         public DataContext(string connectionstring)
         {
             _connectionstring = connectionstring;
@@ -59,7 +60,7 @@ namespace PoorMan.KeyValueStore
 
         private void Serialize<T>(T obj, Action<SqlXml> action)
         {
-            var serializer = new XmlSerializer(obj.GetType());
+            var serializer = new XmlSerializer(obj.GetType(), CreateOverrides(typeof(T)));
             using (var stream = new MemoryStream())
             {
                 serializer.Serialize(stream, obj);
@@ -69,7 +70,7 @@ namespace PoorMan.KeyValueStore
 
         private T Deserialize<T>(XmlReader reader)
         {
-            var serializer = new XmlSerializer(typeof (T));
+            var serializer = new XmlSerializer(typeof (T), CreateOverrides(typeof(T)));
             return (T)serializer.Deserialize(reader);
         }
 
@@ -245,6 +246,20 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@type", typeof(T).FullName);
                 command.ExecuteNonQuery();
             });
+        }
+
+        private XmlAttributeOverrides CreateOverrides(Type type)
+        {
+            var overrides = new XmlAttributeOverrides();
+
+            foreach (var propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetSetMethod() == null || x.PropertyType.IsInterface))
+            {
+                if (propertyInfo.DeclaringType == null)
+                    throw new InvalidOperationException(string.Format("Property {0} has no declaring type", propertyInfo.Name));
+                overrides.Add(propertyInfo.DeclaringType, propertyInfo.Name, new XmlAttributes { XmlIgnore = true });
+            }
+
+            return overrides;
         }
     }
 }

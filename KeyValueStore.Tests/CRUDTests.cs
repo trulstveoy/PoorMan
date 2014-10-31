@@ -9,12 +9,10 @@ namespace KeyValueStore.Tests
     [TestClass]
     public class CRUDTests
     {
-        private const string Connectionstring = "Data Source=localhost;Initial Catalog=PoorMan;Integrated Security=True;Pooling=False";
-
         [TestMethod]
         public void CreateRead()
         {
-            var datacontext = new DataContext(Connectionstring);
+            var datacontext = new DataContext(Constants.Connectionstring);
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
@@ -30,7 +28,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ReadNull()
         {
-            var datacontext = new DataContext(Connectionstring);
+            var datacontext = new DataContext(Constants.Connectionstring);
             datacontext.EnsureNewDatabase();
             
             var order = datacontext.Read<Order>(Guid.NewGuid());
@@ -41,7 +39,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Update()
         {
-            var datacontext = new DataContext(Connectionstring);
+            var datacontext = new DataContext(Constants.Connectionstring);
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
@@ -54,28 +52,9 @@ namespace KeyValueStore.Tests
         }
 
         [TestMethod]
-        public void Interfaces()
-        {
-            var datacontext = new DataContext(Connectionstring);
-            datacontext.EnsureNewDatabase();
-
-            var id = Guid.NewGuid();
-
-            IProduct product = new Product {Text = "abc"};
-            datacontext.Create(id, product);
-
-            Product product2 = new Product { Text = "def" };
-            datacontext.Update(id, product2);
-
-            var result = datacontext.Read<Product>(id);
-
-            Assert.AreEqual("def", result.Text);
-        }
-
-        [TestMethod]
         public void ReadAll()
         {
-            var datacontext = new DataContext(Connectionstring);
+            var datacontext = new DataContext(Constants.Connectionstring);
             datacontext.EnsureNewDatabase();
             
             datacontext.Create(Guid.NewGuid(), new Product {Text = "abc"});
@@ -89,7 +68,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Delete()
         {
-            var datacontext = new DataContext(Connectionstring);
+            var datacontext = new DataContext(Constants.Connectionstring);
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();

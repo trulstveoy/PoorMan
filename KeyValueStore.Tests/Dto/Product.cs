@@ -9,4 +9,14 @@
     {
         public string Text { get; set; } 
     }
+
+    public class ProductA : Product
+    {
+        public string ValueA { get; set; }
+    }
+
+    public class ProductB : Product
+    {
+        public string ValueB { get; set; }
+    }
 }

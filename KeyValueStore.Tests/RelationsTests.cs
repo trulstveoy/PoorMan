@@ -9,12 +9,10 @@ namespace KeyValueStore.Tests
     [TestClass]
     public class RelationsTests
     {
-        private const string Connectionstring = "Data Source=localhost;Initial Catalog=PoorMan;Integrated Security=True;Pooling=False";
-
         [TestMethod]
         public void CreateChild()
         {
-            var context = new DataContext(Connectionstring);
+            var context = new DataContext(Constants.Connectionstring);
 
             context.EnsureNewDatabase();
 
@@ -37,7 +35,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void RemoveChild()
         {
-            var context = new DataContext(Connectionstring);
+            var context = new DataContext(Constants.Connectionstring);
 
             context.EnsureNewDatabase();
 
