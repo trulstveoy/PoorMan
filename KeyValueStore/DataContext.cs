@@ -81,7 +81,7 @@ namespace PoorMan.KeyValueStore
             SqlAction(command => 
                 Serialize(document, sqlXml => 
                 {
-                    command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, GETDATE())";
+                    command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
                     command.Parameters.AddWithValue("@type", document.GetType().FullName);
@@ -97,7 +97,7 @@ namespace PoorMan.KeyValueStore
             SqlAction(command =>
                 Serialize(document, sqlXml =>
                 {
-                    command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = GETDATE() WHERE Id = @id AND type = @type";
+                    command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
                     command.Parameters.AddWithValue("@type", document.GetType().FullName);
@@ -161,7 +161,22 @@ namespace PoorMan.KeyValueStore
             ValidateId(childId);
             SqlAction(command =>
             {
-                command.CommandText = "INSERT INTO Relation (Parent, ParentType, Child, ChildType, LastUpdated) VALUES(@parent, @parentType, @child, @childType, GETDATE())";
+                command.CommandText = "INSERT INTO Relation (Parent, ParentType, Child, ChildType, LastUpdated) VALUES(@parent, @parentType, @child, @childType, SYSDATETIME())";
+                command.Parameters.AddWithValue("@parent", parentId);
+                command.Parameters.AddWithValue("@parentType", typeof(TP).FullName);
+                command.Parameters.AddWithValue("@child", childId);
+                command.Parameters.AddWithValue("@childType", typeof(TC).FullName);
+                command.ExecuteNonQuery();
+            });
+        }
+
+        public void RemoveChild<TP, TC>(object parentId, object childId)
+        {
+            ValidateId(parentId);
+            ValidateId(childId);
+            SqlAction(command =>
+            {
+                command.CommandText = "DELETE FROM Relation WHERE Parent = @parent AND ParentType = @parentType AND Child = @child AND ChildType = @childType";
                 command.Parameters.AddWithValue("@parent", parentId);
                 command.Parameters.AddWithValue("@parentType", typeof(TP).FullName);
                 command.Parameters.AddWithValue("@child", childId);
@@ -219,7 +234,7 @@ namespace PoorMan.KeyValueStore
             return result.Select(Deserialize<T>).ToList();
         }
 
-        public void Delete<T>(Guid id)
+        public void Delete<T>(object id)
         {
             ValidateId(id);
             
