@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
+using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace PoorMan.KeyValueStore
 {
@@ -57,36 +60,53 @@ namespace PoorMan.KeyValueStore
                 throw new InvalidOperationException("Document cannot be null");
         }
 
+        private void Serialize<T>(T obj, Action<SqlXml> action)
+        {
+            var serializer = new XmlSerializer(obj.GetType());
+            using (var stream = new MemoryStream())
+            {
+                serializer.Serialize(stream, obj);
+                action(new SqlXml(stream));
+            }
+        }
+
+        private T Deserialize<T>(XmlReader reader)
+        {
+            var serializer = new XmlSerializer(typeof (T));
+            return (T)serializer.Deserialize(reader);
+        }
+
         public void Create<T>(object id, T document)
         {
             ValidateId(id);
             ValidateDocument(document);
-            var json = JsonConvert.SerializeObject(document, Settings.JsonSerializerSettings);
-
-            SqlAction(command =>
-            {
-                command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, GETDATE())";
-                command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@value", json);
-                command.Parameters.AddWithValue("@type", document.GetType().FullName);
-                command.ExecuteNonQuery();
-            });
+            
+            SqlAction(command => 
+                Serialize(document, sqlXml => 
+                {
+                    command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, GETDATE())";
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
+                    command.Parameters.AddWithValue("@type", document.GetType().FullName);
+                    command.ExecuteNonQuery();
+                }));
         }
 
         public void Update<T>(object id, T document)
         {
             ValidateId(id);
             ValidateDocument(document);
-            var json = JsonConvert.SerializeObject(document, Settings.JsonSerializerSettings);
 
             SqlAction(command =>
-            {
-                command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = GETDATE() WHERE Id = @id AND type = @type";
-                command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@value", json);
-                command.Parameters.AddWithValue("@type", document.GetType().FullName);
-                command.ExecuteNonQuery();
-            });
+                Serialize(document, sqlXml =>
+                {
+                    command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = GETDATE() WHERE Id = @id AND type = @type";
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
+                    command.Parameters.AddWithValue("@type", document.GetType().FullName);
+                    command.ExecuteNonQuery();
+                }
+            ));
         }
 
         public T Read<T>(object id)
@@ -103,7 +123,7 @@ namespace PoorMan.KeyValueStore
                 
                 return new
                 {
-                    Value = reader.GetString(reader.GetOrdinal("Value")),
+                    Value = reader.GetXmlReader(reader.GetOrdinal("Value")),
                     Type = reader.GetString(reader.GetOrdinal("Type"))
                 };
             });
@@ -111,7 +131,7 @@ namespace PoorMan.KeyValueStore
             if (result == null)
                 return default(T);
            
-            return JsonConvert.DeserializeObject<T>(result.Value);
+            return Deserialize<T>(result.Value);
         }
 
         private T SqlQuery<T>(Func<SqlCommand, T> func)
@@ -166,10 +186,10 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@parent", parentId);
                 var reader = command.ExecuteReader();
 
-                var list = new List<Tuple<string, string>>();
+                var list = new List<Tuple<XmlReader, string>>();
                 while (reader.Read())
                 {
-                    list.Add(new Tuple<string, string>(reader.GetString(reader.GetOrdinal("Value")), reader.GetString(reader.GetOrdinal("Type"))));
+                    list.Add(new Tuple<XmlReader, string>(reader.GetXmlReader(reader.GetOrdinal("Value")), reader.GetString(reader.GetOrdinal("Type"))));
                 }
 
                 return list.Select(x => new
@@ -179,7 +199,7 @@ namespace PoorMan.KeyValueStore
                 }).ToList();
             });
 
-            return result.Select(x => JsonConvert.DeserializeObject<T>(x.Value)).ToList();
+            return result.Select(x => Deserialize<T>(x.Value)).ToList();
         }
 
         public List<T> ReadAll<T>()
@@ -190,17 +210,16 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@type", typeof(T).FullName);
                 var reader = command.ExecuteReader();
 
-
-                var values = new List<string>();
+                var values = new List<XmlReader>();
                 while (reader.Read())
                 {
-                    values.Add(reader.GetString(reader.GetOrdinal("Value")));                        
+                    values.Add(reader.GetXmlReader(reader.GetOrdinal("Value")));                        
                 }
 
                 return values;
             });
 
-            return result.Select(JsonConvert.DeserializeObject<T>).ToList();
+            return result.Select(Deserialize<T>).ToList();
         }
 
         public void Delete<T>(Guid id)
