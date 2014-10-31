@@ -12,15 +12,12 @@ namespace PoorMan.KeyValueStore
 {
     public class DataContext
     {
-        private readonly Settings _settings = new Settings();
         private readonly string _connectionstring;
 
         public DataContext(string connectionstring)
         {
             _connectionstring = connectionstring;
         }
-
-        public Settings Settings { get { return _settings; }  }
         
         public void EnsureNewDatabase()
         {
