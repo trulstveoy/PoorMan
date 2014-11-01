@@ -11,7 +11,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ChallengingType()
         {
-            var context = new DataContext(Constants.Connectionstring);
+            var context = new Configuration(Constants.Connectionstring).Create();
             context.EnsureNewDatabase();
 
             var challenge = new SerializerChallenge {Text = "abc", Text2 = "cde"};

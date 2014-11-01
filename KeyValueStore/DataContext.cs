@@ -11,7 +11,20 @@ using System.Xml.Serialization;
 
 namespace PoorMan.KeyValueStore
 {
-    public class DataContext
+    public interface IDataContext
+    {
+        void EnsureNewDatabase();
+        void Create<T>(object id, T document);
+        void Update<T>(object id, T document);
+        T Read<T>(object id);
+        void AppendChild<TP, TC>(object parentId, object childId);
+        void RemoveChild<TP, TC>(object parentId, object childId);
+        List<T> GetChildren<T>(object parentId);
+        List<T> ReadAll<T>();
+        void Delete<T>(object id);
+    }
+
+    internal class DataContext : IDataContext
     {
         private readonly string _connectionstring;
        
@@ -68,7 +81,7 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        private T Deserialize<T>(XmlReader reader, Type persistedType = null)
+        private T Deserialize<T>(XmlReader reader, Type persistedType)
         {
             var serializedType = persistedType ?? typeof (T);
             var serializer = new XmlSerializer(serializedType, CreateOverrides(serializedType));
@@ -108,10 +121,31 @@ namespace PoorMan.KeyValueStore
             ));
         }
 
-        public T Read<T>(object id)
+        private Tuple<XmlReader, string> ReadParent<T>(object id)
         {
-            ValidateId(id);
-            var result = SqlQuery(command =>
+            var decendants = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes().Where(type =>
+                !type.IsInterface && !type.IsAbstract && typeof (T).IsAssignableFrom(type))).Select(GetName).ToList();
+            var inClause = string.Join(",", Enumerable.Range(0, decendants.Count()).Select(x => string.Format("@{0}", x)));
+
+            return SqlQuery(command =>
+            {
+                command.CommandText = string.Format("SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type IN ({0})", inClause);
+                command.Parameters.AddWithValue("@id", id);
+                for (int i = 0; i < decendants.Count; i++)
+                    command.Parameters.AddWithValue("@" + i, decendants[i]);
+                var reader = command.ExecuteReader();
+                if (!reader.Read())
+                    return null;
+
+                return new Tuple<XmlReader, string>(
+                    reader.GetXmlReader(reader.GetOrdinal("Value")),
+                    reader.GetString(reader.GetOrdinal("Type")));
+            });
+        }
+
+        private Tuple<XmlReader, string> ReadConcrete<T>(object id)
+        {
+            return SqlQuery(command =>
             {
                 command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
                 command.Parameters.AddWithValue("@id", id);
@@ -119,18 +153,23 @@ namespace PoorMan.KeyValueStore
                 var reader = command.ExecuteReader();
                 if (!reader.Read())
                     return null;
-                
-                return new
-                {
-                    Value = reader.GetXmlReader(reader.GetOrdinal("Value")),
-                    Type = reader.GetString(reader.GetOrdinal("Type"))
-                };
+
+                return new Tuple<XmlReader, string>(
+                    reader.GetXmlReader(reader.GetOrdinal("Value")),
+                    reader.GetString(reader.GetOrdinal("Type")));
             });
+        }
+
+        public T Read<T>(object id)
+        {
+            ValidateId(id);
+
+            var result = typeof (T).IsInterface ? ReadParent<T>(id) : ReadConcrete<T>(id);
 
             if (result == null)
                 return default(T);
            
-            return Deserialize<T>(result.Value);
+            return Deserialize<T>(result.Item1, Type.GetType(result.Item2));
         }
 
         private T SqlQuery<T>(Func<SqlCommand, T> func)
@@ -224,16 +263,18 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@type", GetName(typeof(T)));
                 var reader = command.ExecuteReader();
 
-                var values = new List<XmlReader>();
+                var values = new List<Tuple<XmlReader, string>>();
                 while (reader.Read())
                 {
-                    values.Add(reader.GetXmlReader(reader.GetOrdinal("Value")));                        
+                    values.Add(new Tuple<XmlReader, string>(
+                        reader.GetXmlReader(reader.GetOrdinal("Value")),
+                        reader.GetString(reader.GetOrdinal("Type"))));
                 }
 
                 return values;
             });
 
-            return result.Select(x => Deserialize<T>(x)).ToList();
+            return result.Select(x => Deserialize<T>(x.Item1, Type.GetType(x.Item2))).ToList();
         }
 
         public void Delete<T>(object id)

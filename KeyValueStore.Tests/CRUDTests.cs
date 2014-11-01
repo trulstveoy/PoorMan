@@ -12,7 +12,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void CreateRead()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
@@ -28,7 +28,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ReadNull()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
             
             var order = datacontext.Read<Order>(Guid.NewGuid());
@@ -39,7 +39,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Update()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
@@ -54,7 +54,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ReadAll()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
             
             datacontext.Create(Guid.NewGuid(), new Product {Text = "abc"});
@@ -68,7 +68,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Delete()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();

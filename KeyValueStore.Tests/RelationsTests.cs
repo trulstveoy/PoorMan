@@ -12,7 +12,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void CreateChild()
         {
-            var context = new DataContext(Constants.Connectionstring);
+            var context = new Configuration(Constants.Connectionstring).Create();
 
             context.EnsureNewDatabase();
 
@@ -35,7 +35,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void RemoveChild()
         {
-            var context = new DataContext(Constants.Connectionstring);
+            var context = new Configuration(Constants.Connectionstring).Create();
 
             context.EnsureNewDatabase();
 

@@ -16,7 +16,9 @@ namespace LoadTests
         {
             Console.WriteLine("Startup");
 
-            new DataContext(Connectionstring).EnsureNewDatabase();
+            var configuration = new Configuration(Connectionstring);
+
+            configuration.Create().EnsureNewDatabase();
 
             var orders = GetOrders();
 
@@ -24,7 +26,7 @@ namespace LoadTests
             {
                 using(var transaction = new TransactionScope())
                 { 
-                    var context = new DataContext(Connectionstring);
+                    var context =  configuration.Create();
                     context.Create(Guid.NewGuid(), order);
                     transaction.Complete();
                 }

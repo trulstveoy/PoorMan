@@ -11,7 +11,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Interfaces()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
@@ -28,9 +28,23 @@ namespace KeyValueStore.Tests
         }
 
         [TestMethod]
+        public void ReadInterface()
+        {
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            datacontext.EnsureNewDatabase();
+
+            var p1 = Guid.NewGuid();
+            datacontext.Create(p1, new ProductA { Text = "abc", ValueA = "va" });
+
+            var product = datacontext.Read<IProduct>(p1);
+
+            Assert.IsNotNull(product);
+        }
+
+        [TestMethod]
         public void ChildrenAndInheritance()
         {
-            var datacontext = new DataContext(Constants.Connectionstring);
+            var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
