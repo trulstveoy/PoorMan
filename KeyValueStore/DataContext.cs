@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
+using PoorMan.KeyValueStore.Interception;
 
 namespace PoorMan.KeyValueStore
 {
@@ -22,6 +23,8 @@ namespace PoorMan.KeyValueStore
         List<T> GetChildren<T>(object parentId);
         List<T> ReadAll<T>();
         void Delete<T>(object id);
+        T Read<T>(object id, Type type);
+        T ReadWithChildren<T>(object id);
     }
 
     internal class DataContext : IDataContext
@@ -170,6 +173,30 @@ namespace PoorMan.KeyValueStore
                 return default(T);
            
             return Deserialize<T>(result.Item1, Type.GetType(result.Item2));
+        }
+
+        public T ReadWithChildren<T>(object id)
+        {
+            var instance = Read<T>(id);
+            if (instance == null)
+                return default(T);
+            
+            var proxy = new ProxyFactory().Create<T>();
+            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor<T>(instance));
+
+            return proxy;
+        }
+
+        public T Read<T>(object id, Type type)
+        {
+            ValidateId(id);
+            
+            var result = typeof(T).IsInterface ? ReadParent<T>(id) : ReadConcrete<T>(id);
+
+            if (result == null)
+                return default(T);
+
+            return Deserialize<T>(result.Item1, type);
         }
 
         private T SqlQuery<T>(Func<SqlCommand, T> func)

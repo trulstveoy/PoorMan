@@ -41,12 +41,16 @@
   <ItemGroup>
     <Compile Include="Configuration.cs" />
     <Compile Include="DataContext.cs" />
+    <Compile Include="Interception\ChildAttribute.cs" />
+    <Compile Include="Interception\ICallInterceptor.cs" />
+    <Compile Include="Interception\IInterceptorSetter.cs" />
+    <Compile Include="Interception\MetaDataFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Interception\ProxyFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Scripts\Sql\KeyValueStore.sql" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
