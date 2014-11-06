@@ -49,6 +49,7 @@ namespace KeyValueStore.Tests
         }
 
         [TestMethod]
+        [Ignore]
         public void DoIt()
         {
             var fooProxy = new ProxyFactory().Create<Foo>();

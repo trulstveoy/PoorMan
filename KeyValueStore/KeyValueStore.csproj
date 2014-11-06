@@ -39,6 +39,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Annotation\Attributes.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="DataContext.cs" />
     <Compile Include="Interception\ChildAttribute.cs" />
