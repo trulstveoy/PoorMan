@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Dynamic;
 using System.IO;
 using System.Reflection;
@@ -40,7 +41,11 @@ namespace KeyValueStore.Tests
             datacontext.AppendChild<Order, Product>(id, p2Id);
 
             var order = datacontext.ReadWithChildren<Order>(id);
-            var products = order.Products;
+            List<Product> products = order.Products;
+            foreach (var product in products)
+            {
+                
+            }
         }
 
         [TestMethod]

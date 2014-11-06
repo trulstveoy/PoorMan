@@ -42,7 +42,7 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="DataContext.cs" />
     <Compile Include="Interception\ChildAttribute.cs" />
-    <Compile Include="Interception\ICallInterceptor.cs" />
+    <Compile Include="Interception\CallInterceptor.cs" />
     <Compile Include="Interception\IInterceptorSetter.cs" />
     <Compile Include="Interception\MetaDataFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
