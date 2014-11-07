@@ -27,12 +27,11 @@ namespace PoorMan.KeyValueStore.Interception
             OpCodeTypeMapper.Add(typeof(UInt32), OpCodes.Ldind_U4);
         }
         
-        public T Create<T>()
+        public object Create(Type type)
         {
-            var type = typeof(T);
             string typeName = type.FullName + "Proxy";
             type = CreateType(type, typeName);
-            return (T)Activator.CreateInstance(type);
+            return Activator.CreateInstance(type);
         }
 
         private Type CreateType(Type parentType, string dynamicTypeName)

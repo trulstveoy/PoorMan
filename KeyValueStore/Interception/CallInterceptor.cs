@@ -11,13 +11,13 @@ namespace PoorMan.KeyValueStore.Interception
         object Invoke(object proxy, MethodInfo method, Object[] parameters);
     }
 
-    public class CallInterceptor<T> : ICallInterceptor
+    public class CallInterceptor : ICallInterceptor
     {
-        private readonly T _instance;
+        private readonly object _instance;
         private readonly IDataContext _dataContext;
         private readonly object _id;
 
-        public CallInterceptor(T instance, IDataContext dataContext, object id)
+        public CallInterceptor(object instance, IDataContext dataContext, object id)
         {
             _instance = instance;
             _dataContext = dataContext;
@@ -49,7 +49,7 @@ namespace PoorMan.KeyValueStore.Interception
                     object parentId = _instance.GetType().GetProperties().FirstOrDefault(x => x.Name == keyCol).GetValue(_instance);
                     
                     Type returnType = method.ReturnType;
-                    var result = _dataContext.Read(parentId, returnType);
+                    var result = _dataContext.ReadWithRelations(parentId, returnType);
                     return result;
                 }
             }

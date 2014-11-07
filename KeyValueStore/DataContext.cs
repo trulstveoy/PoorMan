@@ -16,15 +16,15 @@ namespace PoorMan.KeyValueStore
         void Create<T>(T document) where T : class;
         void Update<T>(T document) where T : class;
         T Read<T>(object id);
-        T Read<T>(object id, Type type);
+        T ReadWithRelations<T>(object id);
         object Read(object id, Type type);
+        object ReadWithRelations(object id, Type type);
         void AppendChild<TP, TC>(TP parent, TC child);
         void RemoveChild<TP, TC>(TP parent, TC child);
         List<TC> GetChildren<TP, TC>(TP document);
         List<object> GetChildren(Type childType, object parentId);
         List<T> ReadAll<T>();
         void Delete<T>(object id);
-        T ReadWithRelations<T>(object id);
     }
 
     internal class DataContext : IDataContext
@@ -147,23 +147,6 @@ namespace PoorMan.KeyValueStore
             });
         }
 
-        private Tuple<XmlReader, string> ReadConcrete<T>(object id)
-        {
-            return SqlQuery(command =>
-            {
-                command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
-                command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", _getDefinition(typeof(T)).Name);
-                var reader = command.ExecuteReader();
-                if (!reader.Read())
-                    return null;
-
-                return new Tuple<XmlReader, string>(
-                    reader.GetXmlReader(reader.GetOrdinal("Value")),
-                    reader.GetString(reader.GetOrdinal("Type")));
-            });
-        }
-
         private Tuple<XmlReader, string> ReadConcrete(object id, Type type)
         {
             return SqlQuery(command =>
@@ -185,24 +168,12 @@ namespace PoorMan.KeyValueStore
         {
             ValidateId(id);
 
-            var result = typeof (T).IsInterface ? ReadParent<T>(id) : ReadConcrete<T>(id);
+            var result = typeof (T).IsInterface ? ReadParent<T>(id) : ReadConcrete(id, typeof(T));
 
             if (result == null)
                 return default(T);
            
             return (T)Deserialize(result.Item1, Type.GetType(result.Item2));
-        }
-
-        public T Read<T>(object id, Type type)
-        {
-            ValidateId(id);
-            
-            var result = typeof(T).IsInterface ? ReadParent<T>(id) : ReadConcrete<T>(id);
-
-            if (result == null)
-                return default(T);
-
-            return (T)Deserialize(result.Item1, type);
         }
 
         public object Read(object id, Type type)
@@ -223,8 +194,20 @@ namespace PoorMan.KeyValueStore
             if (instance == null)
                 return default(T);
             
-            var proxy = new ProxyFactory().Create<T>();
-            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor<T>(instance, this, id));
+            var proxy = new ProxyFactory().Create(typeof(T));
+            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
+
+            return (T)proxy;
+        }
+
+        public object ReadWithRelations(object id, Type type)
+        {
+            object instance = Read(id, type);
+            if (instance == null)
+                return null;
+
+            var proxy = new ProxyFactory().Create(type);
+            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
 
             return proxy;
         }
