@@ -56,10 +56,11 @@ namespace KeyValueStore.Tests
         {
             var datacontext = new Configuration(Constants.Connectionstring).Create();
             datacontext.EnsureNewDatabase();
-            
-            datacontext.Create(Guid.NewGuid(), new Product {Text = "abc"});
-            datacontext.Create(Guid.NewGuid(), new Product {Text = "def"});
-            datacontext.Create(Guid.NewGuid(), new Product {Text = "ghi"});
+
+            for (int i = 0; i < 2000; i++)
+            {
+                datacontext.Create(Guid.NewGuid(), new Product {Text = "abc"});
+            }
 
             var products = datacontext.ReadAll<Product>();
             Assert.IsTrue(products.All(x => new[] {"abc", "def", "ghi"}.Contains(x.Text)));

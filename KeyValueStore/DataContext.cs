@@ -24,11 +24,11 @@ namespace PoorMan.KeyValueStore
         void Delete<T>(object id);
     }
 
-    internal class DataContext : IDataContext
+    public class DataContext : IDataContext
     {
         private readonly string _connectionstring;
        
-        public DataContext(string connectionstring)
+        internal DataContext(string connectionstring)
         {
             _connectionstring = connectionstring;
         }
@@ -274,7 +274,10 @@ namespace PoorMan.KeyValueStore
                 return values;
             });
 
-            return result.Select(x => Deserialize<T>(x.Item1, Type.GetType(x.Item2))).ToList();
+            var type = typeof(T);
+            var overrides = CreateOverrides(type);
+            var serializer = new XmlSerializer(type, overrides);
+            return result.Select(x => (T) serializer.Deserialize(x.Item1)).ToList();
         }
 
         public void Delete<T>(object id)
