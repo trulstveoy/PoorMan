@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
+using PoorMan.KeyValueStore.Interception;
 
 namespace PoorMan.KeyValueStore
 {
@@ -20,8 +21,12 @@ namespace PoorMan.KeyValueStore
         void AppendChild<TP, TC>(object parentId, object childId);
         void RemoveChild<TP, TC>(object parentId, object childId);
         List<T> GetChildren<T>(object parentId);
+        List<object> GetChildren(Type childType, object parentId);
         List<T> ReadAll<T>();
+
         void Delete<T>(object id);
+        T Read<T>(object id, Type type);
+        T ReadWithChildren<T>(object id);
     }
 
     public class DataContext : IDataContext
@@ -86,6 +91,12 @@ namespace PoorMan.KeyValueStore
             var serializedType = persistedType ?? typeof (T);
             var serializer = new XmlSerializer(serializedType, CreateOverrides(serializedType));
             return (T)serializer.Deserialize(reader);
+        }
+
+        private object Deserialize(XmlReader reader, Type type)
+        {
+            var serializer = new XmlSerializer(type, CreateOverrides(type));
+            return serializer.Deserialize(reader);
         }
 
         public void Create<T>(object id, T document)
@@ -172,6 +183,30 @@ namespace PoorMan.KeyValueStore
             return Deserialize<T>(result.Item1, Type.GetType(result.Item2));
         }
 
+        public T ReadWithChildren<T>(object id)
+        {
+            var instance = Read<T>(id);
+            if (instance == null)
+                return default(T);
+            
+            var proxy = new ProxyFactory().Create<T>();
+            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor<T>(instance, this, id));
+
+            return proxy;
+        }
+
+        public T Read<T>(object id, Type type)
+        {
+            ValidateId(id);
+            
+            var result = typeof(T).IsInterface ? ReadParent<T>(id) : ReadConcrete<T>(id);
+
+            if (result == null)
+                return default(T);
+
+            return Deserialize<T>(result.Item1, type);
+        }
+
         private T SqlQuery<T>(Func<SqlCommand, T> func)
         {
             using (var connection = new SqlConnection(_connectionstring))
@@ -224,6 +259,35 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@childType", typeof(TC).AssemblyQualifiedName);
                 command.ExecuteNonQuery();
             });
+        }
+
+        public List<object> GetChildren(Type childType, object parentId)
+        {
+            ValidateId(parentId);
+            const string query = @"SELECT Value, Type FROM KeyValueStore k
+                                  JOIN Relation r on r.Child = k.Id 
+                                  AND r.Parent = @parent";
+
+            var result = SqlQuery(command =>
+            {
+                command.CommandText = query;
+                command.Parameters.AddWithValue("@parent", parentId);
+                var reader = command.ExecuteReader();
+
+                var list = new List<Tuple<XmlReader, string>>();
+                while (reader.Read())
+                {
+                    list.Add(new Tuple<XmlReader, string>(reader.GetXmlReader(reader.GetOrdinal("Value")), reader.GetString(reader.GetOrdinal("Type"))));
+                }
+
+                return list.Select(x => new
+                {
+                    Value = x.Item1,
+                    Type = x.Item2
+                }).ToList();
+            });
+
+            return result.Select(x => Deserialize(x.Value, Type.GetType(x.Type))).ToList();
         }
 
         public List<T> GetChildren<T>(object parentId)
