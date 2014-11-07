@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using PoorMan.KeyValueStore.Annotation;
 using PoorMan.KeyValueStore.Interception;
 
 namespace KeyValueStore.Tests.Dto
@@ -9,5 +11,8 @@ namespace KeyValueStore.Tests.Dto
 
         [Child]
         public virtual List<Product> Products { get; set; }
+
+        [Id]
+        public Guid Id { get; set; }
     }
 }
