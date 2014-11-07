@@ -5,9 +5,7 @@ using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Xml;
-using System.Xml.Serialization;
 using PoorMan.KeyValueStore.Interception;
 
 namespace PoorMan.KeyValueStore
@@ -31,9 +29,9 @@ namespace PoorMan.KeyValueStore
     internal class DataContext : IDataContext
     {
         private readonly string _connectionstring;
-        private readonly Func<string, TypeDefinition> _getDefinition;
+        private readonly Func<Type, TypeDefinition> _getDefinition;
 
-        public DataContext(string connectionstring, Func<string, TypeDefinition> getDefinition)
+        public DataContext(string connectionstring, Func<Type, TypeDefinition> getDefinition)
         {
             _connectionstring = connectionstring;
             _getDefinition = getDefinition;
@@ -77,32 +75,23 @@ namespace PoorMan.KeyValueStore
                 throw new InvalidOperationException("Document cannot be null");
         }
 
-        private void Serialize<T>(T obj, Action<SqlXml> action)
+        private void Serialize(object obj, Action<SqlXml> action)
         {
-            var serializer = new XmlSerializer(obj.GetType(), CreateOverrides(typeof(T)));
             using (var stream = new MemoryStream())
             {
-                serializer.Serialize(stream, obj);
+                _getDefinition(obj.GetType()).Serializer.Serialize(stream, obj);
                 action(new SqlXml(stream));
             }
         }
 
-        private T Deserialize<T>(XmlReader reader, Type persistedType)
-        {
-            var serializedType = persistedType ?? typeof (T);
-            var serializer = new XmlSerializer(serializedType, CreateOverrides(serializedType));
-            return (T)serializer.Deserialize(reader);
-        }
-
         private object Deserialize(XmlReader reader, Type type)
         {
-            var serializer = new XmlSerializer(type, CreateOverrides(type));
-            return serializer.Deserialize(reader);
+            return _getDefinition(type).Serializer.Deserialize(reader);
         }
         
         public void Create<T>(T document) where T : class
         {
-            var id = _getDefinition(document.GetType().FullName).GetId(document);
+            var id = _getDefinition(document.GetType()).GetId(document);
             
             ValidateDocument(document);
             
@@ -112,7 +101,7 @@ namespace PoorMan.KeyValueStore
                     command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", GetName(document.GetType()));
+                    command.Parameters.AddWithValue("@type", _getDefinition(document.GetType()).Name);
                     command.ExecuteNonQuery();
                 }));
         }
@@ -128,7 +117,7 @@ namespace PoorMan.KeyValueStore
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", GetName(document.GetType()));
+                    command.Parameters.AddWithValue("@type", _getDefinition(document.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
             ));
@@ -137,7 +126,7 @@ namespace PoorMan.KeyValueStore
         private Tuple<XmlReader, string> ReadParent<T>(object id)
         {
             var decendants = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes().Where(type =>
-                !type.IsInterface && !type.IsAbstract && typeof (T).IsAssignableFrom(type))).Select(GetName).ToList();
+                !type.IsInterface && !type.IsAbstract && typeof (T).IsAssignableFrom(type))).Select(x => _getDefinition(x).Name).ToList();
             var inClause = string.Join(",", Enumerable.Range(0, decendants.Count()).Select(x => string.Format("@{0}", x)));
 
             return SqlQuery(command =>
@@ -162,7 +151,7 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
                 command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", GetName(typeof(T)));
+                command.Parameters.AddWithValue("@type", _getDefinition(typeof(T)).Name);
                 var reader = command.ExecuteReader();
                 if (!reader.Read())
                     return null;
@@ -182,7 +171,7 @@ namespace PoorMan.KeyValueStore
             if (result == null)
                 return default(T);
            
-            return Deserialize<T>(result.Item1, Type.GetType(result.Item2));
+            return (T)Deserialize(result.Item1, Type.GetType(result.Item2));
         }
 
         public T ReadWithChildren<T>(object id)
@@ -206,7 +195,7 @@ namespace PoorMan.KeyValueStore
             if (result == null)
                 return default(T);
 
-            return Deserialize<T>(result.Item1, type);
+            return (T)Deserialize(result.Item1, type);
         }
 
         private T SqlQuery<T>(Func<SqlCommand, T> func)
@@ -318,7 +307,7 @@ namespace PoorMan.KeyValueStore
                 }).ToList();
             });
 
-            return result.Select(x => Deserialize<T>(x.Value, Type.GetType(x.Type))).ToList();
+            return result.Select(x => (T)Deserialize(x.Value, Type.GetType(x.Type))).ToList();
         }
 
         public List<T> ReadAll<T>()
@@ -326,7 +315,7 @@ namespace PoorMan.KeyValueStore
             var result = SqlQuery(command =>
             {
                 command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE type = @type";
-                command.Parameters.AddWithValue("@type", GetName(typeof(T)));
+                command.Parameters.AddWithValue("@type", _getDefinition(typeof(T)).Name);
                 var reader = command.ExecuteReader();
 
                 var values = new List<Tuple<XmlReader, string>>();
@@ -340,7 +329,7 @@ namespace PoorMan.KeyValueStore
                 return values;
             });
 
-            return result.Select(x => Deserialize<T>(x.Item1, Type.GetType(x.Item2))).ToList();
+            return result.Select(x => (T)Deserialize(x.Item1, Type.GetType(x.Item2))).ToList();
         }
 
         public void Delete<T>(object id)
@@ -351,28 +340,9 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "DELETE FROM KeyValueStore WHERE Id = @id and Type = @type";
                 command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", GetName(typeof(T)));
+                command.Parameters.AddWithValue("@type", _getDefinition(typeof(T)).Name);
                 command.ExecuteNonQuery();
             });
-        }
-
-        private XmlAttributeOverrides CreateOverrides(Type type)
-        {
-            var overrides = new XmlAttributeOverrides();
-
-            foreach (var propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetSetMethod() == null || x.PropertyType.IsInterface))
-            {
-                if (propertyInfo.DeclaringType == null)
-                    throw new InvalidOperationException(string.Format("Property {0} has no declaring type", propertyInfo.Name));
-                overrides.Add(propertyInfo.DeclaringType, propertyInfo.Name, new XmlAttributes { XmlIgnore = true });
-            }
-
-            return overrides;
-        }
-
-        private string GetName(Type type)
-        {
-            return string.Format("{0}, {1}", type.FullName, type.Assembly.FullName.Split(',')[0]);
         }
     }
 }
