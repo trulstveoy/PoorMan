@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using PoorMan.KeyValueStore.Annotation;
 
 namespace PoorMan.KeyValueStore.Interception
 {
@@ -36,8 +37,19 @@ namespace PoorMan.KeyValueStore.Interception
                 {
                     Type generic = method.ReturnType.GetGenericArguments().First();
                     var result = _dataContext.GetChildren(generic, _id);
-                    var changed = result.Select(x => Convert.ChangeType(x, generic)).ToList();
+                    return result;
+                }
+
+                CustomAttributeData parentIdAttribute = _instance.GetType().GetProperties()
+                    .Where(x => x.Name == propertyName).SelectMany(x => x.CustomAttributes)
+                    .FirstOrDefault(x => x.AttributeType == typeof(ParentIdAttribute));
+                if (parentIdAttribute != null)
+                {
+                    string keyCol = (string)parentIdAttribute.ConstructorArguments.First().Value;
+                    object parentId = _instance.GetType().GetProperties().FirstOrDefault(x => x.Name == keyCol).GetValue(_instance);
                     
+                    Type returnType = method.ReturnType;
+                    var result = _dataContext.Read(parentId, returnType);
                     return result;
                 }
             }

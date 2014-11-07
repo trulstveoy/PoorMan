@@ -1,27 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Dynamic;
-using System.IO;
-using System.Reflection;
-using System.Xml.Serialization;
 using KeyValueStore.Tests.Dto;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PoorMan.KeyValueStore;
-using PoorMan.KeyValueStore.Interception;
 
 namespace KeyValueStore.Tests
 {
-    public class SampleInvocationHandler : ICallInterceptor
-    {
-        public object Invoke(object proxy, MethodInfo method, object[] parameters)
-        {
-            var retVal = method.Invoke(proxy, parameters);
-            return retVal;
-        }
-    }
-
     [TestClass]
-    public class ReflectionEmit
+    public class LazyLoad
     {
         [TestMethod]
         public void LazyLoadChildren()
@@ -30,52 +16,35 @@ namespace KeyValueStore.Tests
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
-            var p1Id = Guid.NewGuid();
-            var p2Id = Guid.NewGuid();
+            var order = new Order() {Id = id, Text = "Abc"};
+            var p1 = new Product() { Id = Guid.NewGuid(), Text = "P1" };
+            var p2 = new Product() { Id = Guid.NewGuid(), Text = "P2" };
 
-            datacontext.Create(new Order() {Id = id, Text = "Abc"});
-            datacontext.Create(new Product() {Id = p1Id, Text = "P1"});
-            datacontext.Create(new Product() {Id = p2Id, Text = "P2"});
+            datacontext.Create(order);
+            datacontext.Create(p1);
+            datacontext.Create(p2);
+            datacontext.AppendChild(order, p1);
+            datacontext.AppendChild(order, p2);
 
-            datacontext.AppendChild<Order, Product>(id, p1Id);
-            datacontext.AppendChild<Order, Product>(id, p2Id);
-
-            var order = datacontext.ReadWithChildren<Order>(id);
-            List<Product> products = order.Products;
-            foreach (var product in products)
-            {
-                
-            }
+            var result = datacontext.ReadWithRelations<Order>(id);
+            List<Product> products = result.Products;
+            Assert.AreEqual(2, products.Count);
         }
 
         [TestMethod]
-        [Ignore]
-        public void DoIt()
+        public void LazyLoadParent()
         {
-            var fooProxy = new ProxyFactory().Create<Foo>();
-            var proxyType = fooProxy.GetType();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order), typeof(OrderLine)).Create();
+            datacontext.EnsureNewDatabase();
             
-            var foo = new Foo() { Num = 4554 };
-            var s1 = new XmlSerializer(typeof(Foo));
+            var order = new Order() { Id = Guid.NewGuid(), Text = "Abc" };
+            var line = new OrderLine() { Id = Guid.NewGuid(), OrderId = order.Id };
+            
+            datacontext.Create(order);
+            datacontext.Create(line);
 
-            Foo newFoo;
-            using (var m1 = new MemoryStream())
-            {
-                s1.Serialize(m1, foo);
-                m1.Seek(0, SeekOrigin.Begin);
-
-                var overrides = new XmlAttributeOverrides();
-                overrides.Add(typeof(Foo), new XmlAttributes { XmlType = new XmlTypeAttribute("IgnoreFoo") });
-                overrides.Add(proxyType, new XmlAttributes { XmlType = new XmlTypeAttribute("Foo") });
-
-                var s2 = new XmlSerializer(proxyType, overrides);
-                newFoo = (Foo)s2.Deserialize(m1);
-            }
-
-            var ifc = (IInterceptorSetter)newFoo;
-            ifc.SetInterceptor(new SampleInvocationHandler());
-
-            var bar = newFoo.Bar;
+            var result = datacontext.ReadWithRelations<OrderLine>(line.Id);
+            Assert.IsNotNull(result.Order);
         }
     }
 }

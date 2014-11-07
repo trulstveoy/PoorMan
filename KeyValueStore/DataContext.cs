@@ -14,16 +14,17 @@ namespace PoorMan.KeyValueStore
     {
         void EnsureNewDatabase();
         void Create<T>(T document) where T : class;
-        void Update<T>(object id, T document) where T : class;
+        void Update<T>(T document) where T : class;
         T Read<T>(object id);
-        void AppendChild<TP, TC>(object parentId, object childId);
-        void RemoveChild<TP, TC>(object parentId, object childId);
-        List<T> GetChildren<T>(object parentId);
+        T Read<T>(object id, Type type);
+        object Read(object id, Type type);
+        void AppendChild<TP, TC>(TP parent, TC child);
+        void RemoveChild<TP, TC>(TP parent, TC child);
+        List<TC> GetChildren<TP, TC>(TP document);
         List<object> GetChildren(Type childType, object parentId);
         List<T> ReadAll<T>();
         void Delete<T>(object id);
-        T Read<T>(object id, Type type);
-        T ReadWithChildren<T>(object id);
+        T ReadWithRelations<T>(object id);
     }
 
     internal class DataContext : IDataContext
@@ -69,10 +70,12 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        private void ValidateDocument<T>(T document) where T : class
+        private void ValidateDocument(params object[] documents)
         {
-            if(document == null)
+            if (documents.Any(document => document == null))
+            {
                 throw new InvalidOperationException("Document cannot be null");
+            }
         }
 
         private void Serialize(object obj, Action<SqlXml> action)
@@ -91,10 +94,9 @@ namespace PoorMan.KeyValueStore
         
         public void Create<T>(T document) where T : class
         {
-            var id = _getDefinition(document.GetType()).GetId(document);
-            
             ValidateDocument(document);
-            
+            var id = _getDefinition(document.GetType()).GetId(document);
+
             SqlAction(command => 
                 Serialize(document, sqlXml => 
                 {
@@ -106,10 +108,10 @@ namespace PoorMan.KeyValueStore
                 }));
         }
 
-        public void Update<T>(object id, T document) where T : class
+        public void Update<T>(T document) where T : class
         {
-            ValidateId(id);
             ValidateDocument(document);
+            var id = _getDefinition(document.GetType()).GetId(document);
 
             SqlAction(command =>
                 Serialize(document, sqlXml =>
@@ -162,6 +164,23 @@ namespace PoorMan.KeyValueStore
             });
         }
 
+        private Tuple<XmlReader, string> ReadConcrete(object id, Type type)
+        {
+            return SqlQuery(command =>
+            {
+                command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
+                command.Parameters.AddWithValue("@id", id);
+                command.Parameters.AddWithValue("@type", _getDefinition(type).Name);
+                var reader = command.ExecuteReader();
+                if (!reader.Read())
+                    return null;
+
+                return new Tuple<XmlReader, string>(
+                    reader.GetXmlReader(reader.GetOrdinal("Value")),
+                    reader.GetString(reader.GetOrdinal("Type")));
+            });
+        }
+
         public T Read<T>(object id)
         {
             ValidateId(id);
@@ -174,18 +193,6 @@ namespace PoorMan.KeyValueStore
             return (T)Deserialize(result.Item1, Type.GetType(result.Item2));
         }
 
-        public T ReadWithChildren<T>(object id)
-        {
-            var instance = Read<T>(id);
-            if (instance == null)
-                return default(T);
-            
-            var proxy = new ProxyFactory().Create<T>();
-            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor<T>(instance, this, id));
-
-            return proxy;
-        }
-
         public T Read<T>(object id, Type type)
         {
             ValidateId(id);
@@ -196,6 +203,30 @@ namespace PoorMan.KeyValueStore
                 return default(T);
 
             return (T)Deserialize(result.Item1, type);
+        }
+
+        public object Read(object id, Type type)
+        {
+            ValidateId(id);
+
+            var result = ReadConcrete(id, type);
+
+            if (result == null)
+                return null;
+
+            return Deserialize(result.Item1, type);
+        }
+
+        public T ReadWithRelations<T>(object id)
+        {
+            T instance = Read<T>(id);
+            if (instance == null)
+                return default(T);
+            
+            var proxy = new ProxyFactory().Create<T>();
+            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor<T>(instance, this, id));
+
+            return proxy;
         }
 
         private T SqlQuery<T>(Func<SqlCommand, T> func)
@@ -222,32 +253,36 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        public void AppendChild<TP, TC>(object parentId, object childId)
+        public void AppendChild<TP, TC>(TP parent, TC child)
         {
-            ValidateId(parentId);
-            ValidateId(childId);
+            ValidateDocument(parent, child);
+            var parentDef = _getDefinition(parent.GetType());
+            var childDef = _getDefinition(child.GetType());
+            
             SqlAction(command =>
             {
                 command.CommandText = "INSERT INTO Relation (Parent, ParentType, Child, ChildType, LastUpdated) VALUES(@parent, @parentType, @child, @childType, SYSDATETIME())";
-                command.Parameters.AddWithValue("@parent", parentId);
-                command.Parameters.AddWithValue("@parentType", typeof(TP).AssemblyQualifiedName);
-                command.Parameters.AddWithValue("@child", childId);
-                command.Parameters.AddWithValue("@childType", typeof(TC).AssemblyQualifiedName);
+                command.Parameters.AddWithValue("@parent", parentDef.GetId(parent));
+                command.Parameters.AddWithValue("@parentType", parentDef.Name);
+                command.Parameters.AddWithValue("@child", childDef.GetId(child));
+                command.Parameters.AddWithValue("@childType", childDef.Name);
                 command.ExecuteNonQuery();
             });
         }
 
-        public void RemoveChild<TP, TC>(object parentId, object childId)
+        public void RemoveChild<TP, TC>(TP parent, TC child)
         {
-            ValidateId(parentId);
-            ValidateId(childId);
+            ValidateDocument(parent, child);
+            var parentDef = _getDefinition(parent.GetType());
+            var childDef = _getDefinition(child.GetType());
+            
             SqlAction(command =>
             {
                 command.CommandText = "DELETE FROM Relation WHERE Parent = @parent AND ParentType = @parentType AND Child = @child AND ChildType = @childType";
-                command.Parameters.AddWithValue("@parent", parentId);
-                command.Parameters.AddWithValue("@parentType", typeof(TP).AssemblyQualifiedName);
-                command.Parameters.AddWithValue("@child", childId);
-                command.Parameters.AddWithValue("@childType", typeof(TC).AssemblyQualifiedName);
+                command.Parameters.AddWithValue("@parent", parentDef.GetId(parent));
+                command.Parameters.AddWithValue("@parentType", parentDef.Name);
+                command.Parameters.AddWithValue("@child", childDef.GetId(child));
+                command.Parameters.AddWithValue("@childType", childDef.Name);
                 command.ExecuteNonQuery();
             });
         }
@@ -281,9 +316,8 @@ namespace PoorMan.KeyValueStore
             return result.Select(x => Deserialize(x.Value, Type.GetType(x.Type))).ToList();
         }
 
-        public List<T> GetChildren<T>(object parentId)
+        public List<TC> GetChildren<TP, TC>(TP parent)
         {
-            ValidateId(parentId);
             const string query = @"SELECT Value, Type FROM KeyValueStore k
                                   JOIN Relation r on r.Child = k.Id 
                                   AND r.Parent = @parent";
@@ -291,7 +325,7 @@ namespace PoorMan.KeyValueStore
             var result = SqlQuery(command =>
             {
                 command.CommandText = query;
-                command.Parameters.AddWithValue("@parent", parentId);
+                command.Parameters.AddWithValue("@parent", _getDefinition(parent.GetType()).GetId(parent));
                 var reader = command.ExecuteReader();
 
                 var list = new List<Tuple<XmlReader, string>>();
@@ -307,7 +341,7 @@ namespace PoorMan.KeyValueStore
                 }).ToList();
             });
 
-            return result.Select(x => (T)Deserialize(x.Value, Type.GetType(x.Type))).ToList();
+            return result.Select(x => (TC)Deserialize(x.Value, Type.GetType(x.Type))).ToList();
         }
 
         public List<T> ReadAll<T>()

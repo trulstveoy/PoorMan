@@ -45,7 +45,7 @@ namespace KeyValueStore.Tests
             var id = Guid.NewGuid();
             
             datacontext.Create(new Order {Id = id, Text = "Abc" });
-            datacontext.Update(id, new Order() {Text = "Def"});
+            datacontext.Update(new Order() {Id= id, Text = "Def"});
 
             var result = datacontext.Read<Order>(id);
             Assert.AreEqual("Def", result.Text);

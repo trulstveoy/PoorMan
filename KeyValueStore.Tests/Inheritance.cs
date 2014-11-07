@@ -19,8 +19,8 @@ namespace KeyValueStore.Tests
             IProduct product = new Product { Id = id, Text = "abc" };
             datacontext.Create(product);
 
-            Product product2 = new Product { Text = "def" };
-            datacontext.Update(id, product2);
+            Product product2 = new Product { Id = id, Text = "def" };
+            datacontext.Update(product2);
 
             var result = datacontext.Read<Product>(id);
 
@@ -47,20 +47,20 @@ namespace KeyValueStore.Tests
             var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order), typeof(ProductA), typeof(ProductB)).Create();
             datacontext.EnsureNewDatabase();
 
-            var id = Guid.NewGuid();
-            datacontext.Create(new Order() {Id = id});
+            var order = new Order() {Id = Guid.NewGuid()};
+            datacontext.Create(order);
 
-            var p1 = Guid.NewGuid();
-            datacontext.Create(new ProductA {Id = p1, Text = "abc", ValueA = "va" });
-            var p2 = Guid.NewGuid();
-            datacontext.Create(new ProductB {Id = p2, Text = "abc", ValueB = "vb" });
+            var p1 = new ProductA {Id = Guid.NewGuid(), Text = "abc", ValueA = "va"};
+            datacontext.Create(p1);
+            var p2 = new ProductB {Id = Guid.NewGuid(), Text = "abc", ValueB = "vb"};
+            datacontext.Create(p2);
 
-            datacontext.AppendChild<Order, ProductA>(id, p1);
-            datacontext.AppendChild<Order, ProductB>(id, p2);
+            datacontext.AppendChild(order, p1);
+            datacontext.AppendChild(order, p2);
 
-            var children = datacontext.GetChildren<IProduct>(id);
+            var children = datacontext.GetChildren<Order, IProduct>(order);
             Assert.AreEqual(2, children.Count);
-            var children2 = datacontext.GetChildren<Product>(id);
+            var children2 = datacontext.GetChildren<Order, Product>(order);
             Assert.AreEqual(2, children2.Count);
         }
     }

@@ -10,9 +10,10 @@ namespace KeyValueStore.Tests.Dto
 
     public class Product : IProduct
     {
-        public string Text { get; set; }
         [Id]
         public Guid Id { get; set; }
+
+        public string Text { get; set; }
     }
 
     public class ProductA : Product
