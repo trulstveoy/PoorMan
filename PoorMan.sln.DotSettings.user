@@ -1,7 +1,7 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:Boolean x:Key="/Default/Housekeeping/Bookmarks/NumberedBookmarks/=Bookmark8/@KeyIndexDefined">True</s:Boolean>
-	<s:String x:Key="/Default/Housekeeping/Bookmarks/NumberedBookmarks/=Bookmark8/Coords/@EntryValue">(Doc Ln 138 Col 112)</s:String>
-	<s:String x:Key="/Default/Housekeeping/Bookmarks/NumberedBookmarks/=Bookmark8/FileId/@EntryValue">24230EFD-379D-43A4-A99E-C03FC4C13C46/f:DataContext.cs</s:String>
+	<s:String x:Key="/Default/Housekeeping/Bookmarks/NumberedBookmarks/=Bookmark8/Coords/@EntryValue">(Doc Ln 54 Col 12)</s:String>
+	<s:String x:Key="/Default/Housekeeping/Bookmarks/NumberedBookmarks/=Bookmark8/FileId/@EntryValue">24230EFD-379D-43A4-A99E-C03FC4C13C46/f:Configuration.cs</s:String>
 	<s:String x:Key="/Default/Housekeeping/Bookmarks/NumberedBookmarks/=Bookmark8/Owner/@EntryValue">NumberedBookmarkManager</s:String>
 	<s:Boolean x:Key="/Default/Housekeeping/UnitTestingMru/UnitTestSessionPersistentData/=CCEF2820AC1746C48A2D9128CFE5754D/@KeyIndexDefined">True</s:Boolean>
 	<s:String x:Key="/Default/Housekeeping/UnitTestingMru/UnitTestSessionPersistentData/=CCEF2820AC1746C48A2D9128CFE5754D/Name/@EntryValue">Go</s:String>

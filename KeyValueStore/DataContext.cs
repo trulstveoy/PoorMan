@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
+using PoorMan.KeyValueStore.Annotation;
 using PoorMan.KeyValueStore.Interception;
 
 namespace PoorMan.KeyValueStore
@@ -15,15 +16,15 @@ namespace PoorMan.KeyValueStore
     public interface IDataContext
     {
         void EnsureNewDatabase();
-        void Create<T>(object id, T document);
-        void Update<T>(object id, T document);
+        void Create<T>(object id, T document); // delete
+        void Create<T>(T document) where T : class;
+        void Update<T>(object id, T document) where T : class;
         T Read<T>(object id);
         void AppendChild<TP, TC>(object parentId, object childId);
         void RemoveChild<TP, TC>(object parentId, object childId);
         List<T> GetChildren<T>(object parentId);
         List<object> GetChildren(Type childType, object parentId);
         List<T> ReadAll<T>();
-
         void Delete<T>(object id);
         T Read<T>(object id, Type type);
         T ReadWithChildren<T>(object id);
@@ -32,12 +33,14 @@ namespace PoorMan.KeyValueStore
     internal class DataContext : IDataContext
     {
         private readonly string _connectionstring;
-       
-        public DataContext(string connectionstring)
+        private readonly Dictionary<string, TypeDefinition> _definitions;
+
+        public DataContext(string connectionstring, Dictionary<string, TypeDefinition> definitions)
         {
             _connectionstring = connectionstring;
+            _definitions = definitions;
         }
-        
+
         public void EnsureNewDatabase()
         {
             var script = new Func<string, string>(name =>
@@ -64,13 +67,13 @@ namespace PoorMan.KeyValueStore
         private void ValidateId(object id)
         {
             var validTypes = new[] {typeof (Guid), typeof (string), typeof (long), typeof (int)};
-            if (!validTypes.Contains(id.GetType()))
+            if (id == null || !validTypes.Contains(id.GetType()))
             {
-                throw new InvalidOperationException("Id needs to be of type Guid, string, long or int");
+                throw new InvalidOperationException("Id needs to be of type Guid, string, long or int and cannot be null");
             }
         }
 
-        private void ValidateDocument<T>(T document)
+        private void ValidateDocument<T>(T document) where T : class
         {
             if(document == null)
                 throw new InvalidOperationException("Document cannot be null");
@@ -98,10 +101,12 @@ namespace PoorMan.KeyValueStore
             var serializer = new XmlSerializer(type, CreateOverrides(type));
             return serializer.Deserialize(reader);
         }
-
-        public void Create<T>(object id, T document)
+        public void Create<T>(object id, T document) { }
+        public void Create<T>(T document) where T : class
         {
-            ValidateId(id);
+            var id = GetId(document);
+
+            
             ValidateDocument(document);
             
             SqlAction(command => 
@@ -115,7 +120,19 @@ namespace PoorMan.KeyValueStore
                 }));
         }
 
-        public void Update<T>(object id, T document)
+        private object GetId<T>(T document)
+        {
+            var propertyInfo = document.GetType().GetProperties().FirstOrDefault(x => x.CustomAttributes.Any(attr => attr.AttributeType == typeof(IdAttribute)));
+            if(propertyInfo == null)
+                throw new InvalidOperationException("Missing key attribute for document");
+
+            var id = propertyInfo.GetValue(document);
+            ValidateId(id);
+
+            return id;
+        }
+
+        public void Update<T>(object id, T document) where T : class
         {
             ValidateId(id);
             ValidateDocument(document);
