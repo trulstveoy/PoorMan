@@ -12,7 +12,8 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void CreateRead()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring)
+                .WithDocuments(typeof(Order)).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
@@ -27,7 +28,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ReadNull()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order)).Create();
             datacontext.EnsureNewDatabase();
             
             var order = datacontext.Read<Order>(Guid.NewGuid());
@@ -38,12 +39,12 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Update()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order)).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
             
-            datacontext.Create(id, new Order { Text = "Abc" });
+            datacontext.Create(new Order {Id = id, Text = "Abc" });
             datacontext.Update(id, new Order() {Text = "Def"});
 
             var result = datacontext.Read<Order>(id);
@@ -53,12 +54,12 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ReadAll()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Product)).Create();
             datacontext.EnsureNewDatabase();
 
-            for (int i = 0; i < 2000; i++)
+            for (int i = 0; i < 10; i++)
             {
-                datacontext.Create(Guid.NewGuid(), new Product {Text = "abc"});
+                datacontext.Create(new Product {Id = Guid.NewGuid(), Text = "abc"});
             }
 
             var products = datacontext.ReadAll<Product>();
@@ -68,11 +69,11 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Delete()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Product)).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
-            datacontext.Create(id, new Product{ Text = "abc"});
+            datacontext.Create(new Product{Id = id, Text = "abc"});
 
             datacontext.Delete<Product>(id);
 

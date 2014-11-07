@@ -26,16 +26,16 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void LazyLoadChildren()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order), typeof(Product)).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
             var p1Id = Guid.NewGuid();
             var p2Id = Guid.NewGuid();
 
-            datacontext.Create(id, new Order() {Text = "Abc"});
-            datacontext.Create(p1Id, new Product() {Text = "P1"});
-            datacontext.Create(p2Id, new Product() {Text = "P2"});
+            datacontext.Create(new Order() {Id = id, Text = "Abc"});
+            datacontext.Create(new Product() {Id = p1Id, Text = "P1"});
+            datacontext.Create(new Product() {Id = p2Id, Text = "P2"});
 
             datacontext.AppendChild<Order, Product>(id, p1Id);
             datacontext.AppendChild<Order, Product>(id, p2Id);

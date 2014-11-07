@@ -27,7 +27,7 @@ namespace LoadTests
                 using(var transaction = new TransactionScope())
                 { 
                     var context =  configuration.Create();
-                    context.Create(Guid.NewGuid(), order);
+                    context.Create(order);
                     transaction.Complete();
                 }
                 Console.Write(".");
@@ -39,7 +39,7 @@ namespace LoadTests
 
         private static List<Order> GetOrders()
         {
-            return Enumerable.Range(0, 10000).Select(x => new Order() {Text = GetText()}).ToList();
+            return Enumerable.Range(0, 10000).Select(x => new Order() {Id = Guid.NewGuid(), Text = GetText()}).ToList();
         }
 
         private static string GetText()

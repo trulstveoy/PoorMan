@@ -12,7 +12,7 @@ namespace PoorMan.KeyValueStore
         private readonly string _connectionString;
         private readonly List<Type> _types = new List<Type>();
 
-        private Dictionary<string, TypeDefinition> _definitions;
+        private Func<string, TypeDefinition> _getDefinition; 
 
         public Configuration(string connectionString)
         {
@@ -21,13 +21,26 @@ namespace PoorMan.KeyValueStore
 
         public Configuration WithDocuments(params Type[] types)
         {
-            _definitions = _types.ToDictionary(type => type.FullName, CreateDefinition);
+            var temp = types.ToArray();
+            var definitions = temp.ToDictionary(type => type.FullName, CreateDefinition);
+            var getDefinition = new Func<string, TypeDefinition>(name =>
+            {
+                TypeDefinition typeDefinition;
+                if (!definitions.TryGetValue(name, out typeDefinition))
+                    throw new InvalidOperationException(string.Format("No type definition exists for type {0}. Configure WithDocuments", name));
+
+                return typeDefinition;
+            });
+
+            _getDefinition = getDefinition;
             return this;
         }
 
         public IDataContext Create()
         {
-            return new DataContext(_connectionString);
+            if(_getDefinition == null)
+                throw new InvalidOperationException("Types not probed. Use WithDocuments.");
+            return new DataContext(_connectionString, _getDefinition);
         }
 
         private TypeDefinition CreateDefinition(Type type)

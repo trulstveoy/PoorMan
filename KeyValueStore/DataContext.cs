@@ -8,7 +8,6 @@ using System.Linq;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Serialization;
-using PoorMan.KeyValueStore.Annotation;
 using PoorMan.KeyValueStore.Interception;
 
 namespace PoorMan.KeyValueStore
@@ -16,7 +15,6 @@ namespace PoorMan.KeyValueStore
     public interface IDataContext
     {
         void EnsureNewDatabase();
-        void Create<T>(object id, T document); // delete
         void Create<T>(T document) where T : class;
         void Update<T>(object id, T document) where T : class;
         T Read<T>(object id);
@@ -33,12 +31,12 @@ namespace PoorMan.KeyValueStore
     internal class DataContext : IDataContext
     {
         private readonly string _connectionstring;
-        private readonly Dictionary<string, TypeDefinition> _definitions;
+        private readonly Func<string, TypeDefinition> _getDefinition;
 
-        public DataContext(string connectionstring, Dictionary<string, TypeDefinition> definitions)
+        public DataContext(string connectionstring, Func<string, TypeDefinition> getDefinition)
         {
             _connectionstring = connectionstring;
-            _definitions = definitions;
+            _getDefinition = getDefinition;
         }
 
         public void EnsureNewDatabase()
@@ -101,11 +99,10 @@ namespace PoorMan.KeyValueStore
             var serializer = new XmlSerializer(type, CreateOverrides(type));
             return serializer.Deserialize(reader);
         }
-        public void Create<T>(object id, T document) { }
+        
         public void Create<T>(T document) where T : class
         {
-            var id = GetId(document);
-
+            var id = _getDefinition(document.GetType().FullName).GetId(document);
             
             ValidateDocument(document);
             
@@ -118,18 +115,6 @@ namespace PoorMan.KeyValueStore
                     command.Parameters.AddWithValue("@type", GetName(document.GetType()));
                     command.ExecuteNonQuery();
                 }));
-        }
-
-        private object GetId<T>(T document)
-        {
-            var propertyInfo = document.GetType().GetProperties().FirstOrDefault(x => x.CustomAttributes.Any(attr => attr.AttributeType == typeof(IdAttribute)));
-            if(propertyInfo == null)
-                throw new InvalidOperationException("Missing key attribute for document");
-
-            var id = propertyInfo.GetValue(document);
-            ValidateId(id);
-
-            return id;
         }
 
         public void Update<T>(object id, T document) where T : class

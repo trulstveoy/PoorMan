@@ -1,9 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using PoorMan.KeyValueStore.Annotation;
 
 namespace KeyValueStore.Tests.Dto
 {
     public class SerializerChallengeBase
     {
+        [Id]
+        public Guid Id { get; set; }
         public string Text2 { get; set; }
         public string NotWrite2 { get; private set; }
     }

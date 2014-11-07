@@ -11,13 +11,14 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ChallengingType()
         {
-            var context = new Configuration(Constants.Connectionstring).Create();
+            var context = new Configuration(Constants.Connectionstring).WithDocuments(typeof(SerializerChallenge)).Create();
             context.EnsureNewDatabase();
 
-            var challenge = new SerializerChallenge {Text = "abc", Text2 = "cde"};
-
             var id = Guid.NewGuid();
-            context.Create(id, challenge);
+            var challenge = new SerializerChallenge {Id = id,  Text = "abc", Text2 = "cde"};
+
+            
+            context.Create(challenge);
 
             var result = context.Read<SerializerChallenge>(id);
             Assert.IsNotNull(result);

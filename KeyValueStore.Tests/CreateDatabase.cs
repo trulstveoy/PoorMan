@@ -9,7 +9,7 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Go()
         {
-            var context = new Configuration(Constants.Connectionstring).Create();
+            var context = new Configuration(Constants.Connectionstring).WithDocuments().Create();
             context.EnsureNewDatabase();
         }
     }

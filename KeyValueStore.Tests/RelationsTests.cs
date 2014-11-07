@@ -12,17 +12,18 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void CreateChild()
         {
-            var context = new Configuration(Constants.Connectionstring).Create();
+            var context = new Configuration(Constants.Connectionstring)
+                .WithDocuments(typeof(Order), typeof(Product)).Create();
 
             context.EnsureNewDatabase();
 
             var orderId = Guid.NewGuid();
-            context.Create(orderId, new Order {Text = "parent"});
+            context.Create(new Order {Id = orderId, Text = "parent"});
 
             for (int i = 0; i < 10; i++)
             {
                 var productId = Guid.NewGuid();
-                context.Create(productId, new Product() { Text = "child" });
+                context.Create(new Product() {Id = productId, Text = "child" });
                 context.AppendChild<Order, Product>(orderId, productId);
             }
 
@@ -35,17 +36,17 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void RemoveChild()
         {
-            var context = new Configuration(Constants.Connectionstring).Create();
+            var context = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Product), typeof(Order)).Create();
 
             context.EnsureNewDatabase();
 
             var orderId = Guid.NewGuid();
-            context.Create(orderId, new Order { Text = "parent" });
+            context.Create(new Order {Id = orderId, Text = "parent" });
 
             var ids = Enumerable.Range(0, 10).Select(x => Guid.NewGuid()).ToList();
             foreach (var productId in ids)
             {
-                context.Create(productId, new Product() { Text = "child" });
+                context.Create(new Product() {Id = productId, Text = "child" });
                 context.AppendChild<Order, Product>(orderId, productId);
             }
 

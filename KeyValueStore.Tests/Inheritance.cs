@@ -11,13 +11,13 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void Interfaces()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Product)).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
 
-            IProduct product = new Product { Text = "abc" };
-            datacontext.Create(id, product);
+            IProduct product = new Product { Id = id, Text = "abc" };
+            datacontext.Create(product);
 
             Product product2 = new Product { Text = "def" };
             datacontext.Update(id, product2);
@@ -30,13 +30,13 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ReadInterface()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(ProductA)).Create();
             datacontext.EnsureNewDatabase();
 
             var p1 = Guid.NewGuid();
-            datacontext.Create(p1, new ProductA { Text = "abc", ValueA = "va" });
+            datacontext.Create(new ProductA {Id = p1, Text = "abc", ValueA = "va" });
 
-            var product = datacontext.Read<IProduct>(p1);
+            IProduct product = datacontext.Read<Product>(p1);
 
             Assert.IsNotNull(product);
         }
@@ -44,16 +44,16 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void ChildrenAndInheritance()
         {
-            var datacontext = new Configuration(Constants.Connectionstring).Create();
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order), typeof(ProductA), typeof(ProductB)).Create();
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
-            datacontext.Create(id, new Order());
+            datacontext.Create(new Order() {Id = id});
 
             var p1 = Guid.NewGuid();
-            datacontext.Create(p1, new ProductA { Text = "abc", ValueA = "va" });
+            datacontext.Create(new ProductA {Id = p1, Text = "abc", ValueA = "va" });
             var p2 = Guid.NewGuid();
-            datacontext.Create(p2, new ProductB { Text = "abc", ValueB = "vb" });
+            datacontext.Create(new ProductB {Id = p2, Text = "abc", ValueB = "vb" });
 
             datacontext.AppendChild<Order, ProductA>(id, p1);
             datacontext.AppendChild<Order, ProductB>(id, p2);

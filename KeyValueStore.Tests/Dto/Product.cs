@@ -1,4 +1,7 @@
-﻿namespace KeyValueStore.Tests.Dto
+﻿using System;
+using PoorMan.KeyValueStore.Annotation;
+
+namespace KeyValueStore.Tests.Dto
 {
     public interface IProduct
     {
@@ -7,7 +10,9 @@
 
     public class Product : IProduct
     {
-        public string Text { get; set; } 
+        public string Text { get; set; }
+        [Id]
+        public Guid Id { get; set; }
     }
 
     public class ProductA : Product
