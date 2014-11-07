@@ -12,6 +12,9 @@ namespace KeyValueStore.Tests.Dto
         [Child]
         public virtual List<Product> Products { get; set; }
 
+        [Child]
+        public virtual List<OrderLine> OrderLines { get; set; }
+
         [Id]
         public Guid Id { get; set; }
     }

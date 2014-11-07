@@ -42,9 +42,11 @@ namespace KeyValueStore.Tests
             
             datacontext.Create(order);
             datacontext.Create(line);
+            datacontext.AppendChild(order, line);
 
             var result = datacontext.ReadWithRelations<OrderLine>(line.Id);
             Assert.IsNotNull(result.Order);
+            Assert.AreEqual(1, result.Order.OrderLines.Count);
         }
     }
 }
