@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml.Serialization;
 using PoorMan.KeyValueStore.Annotation;
+using PoorMan.KeyValueStore.Interception;
 
 namespace PoorMan.KeyValueStore
 {
@@ -22,6 +23,11 @@ namespace PoorMan.KeyValueStore
         public Configuration WithDocuments(params Type[] types)
         {
             var typeArray = types.ToArray();
+
+            var proxyFactory = new ProxyFactory();
+            var proxies = typeArray.Select(type => proxyFactory.CreateType(type)).ToList();
+
+            var proxyDefinitions = proxies.ToDictionary(type => type, type => CreateDefinitionForProxy(type));
             var definitions = typeArray.ToDictionary(type => type, type => CreateDefinition(type));
             _getDefinition = new Func<Type, TypeDefinition>(type =>
             {
@@ -43,6 +49,16 @@ namespace PoorMan.KeyValueStore
             return new DataContext(_connectionString, _getDefinition);
         }
 
+        private TypeDefinition CreateDefinitionForProxy(Type type)
+        {
+            return new TypeDefinition
+            {
+                Serializer = CreateSerializerForProxy(type),
+                GetId = CreateGetId(type),
+                Name = GetTypeName(type)
+            };
+        }
+
         private TypeDefinition CreateDefinition(Type type)
         {
             return new TypeDefinition
@@ -62,7 +78,7 @@ namespace PoorMan.KeyValueStore
         {
             var propertyInfo = type.GetProperties().FirstOrDefault(x => x.CustomAttributes.Any(attr => attr.AttributeType == typeof(IdAttribute)));
             if (propertyInfo == null)
-                throw new InvalidOperationException("Missing key attribute for document");
+                throw new InvalidOperationException("Missing Id attribute for document");
             if (!new[] { typeof(Guid), typeof(string), typeof(long), typeof(int) }.Contains(propertyInfo.PropertyType))
                 throw new InvalidOperationException(string.Format("Id for type {0} has to be either Guid, string, long or int", type.FullName));
 
@@ -75,6 +91,28 @@ namespace PoorMan.KeyValueStore
                 }
                 return id;
             };
+        }
+
+        private XmlSerializer CreateSerializerForProxy(Type type)
+        {
+            //TODO: remove?
+            if (type.IsInterface)
+                return null;
+
+            var baseType = type.BaseType;
+
+            var overrides = new XmlAttributeOverrides();
+
+            overrides.Add(baseType, new XmlAttributes { XmlType = new XmlTypeAttribute("IgnoreBaseType") });
+            overrides.Add(type, new XmlAttributes { XmlType = new XmlTypeAttribute(baseType.Name) });
+            foreach (var propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetSetMethod() == null || x.PropertyType.IsInterface))
+            {
+                if (propertyInfo.DeclaringType == null)
+                    throw new InvalidOperationException(string.Format("Property {0} has no declaring type", propertyInfo.Name));
+                overrides.Add(propertyInfo.DeclaringType, propertyInfo.Name, new XmlAttributes { XmlIgnore = true });
+            }
+
+            return new XmlSerializer(type, overrides);
         }
 
         private XmlSerializer CreateSerializer(Type type)

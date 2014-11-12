@@ -9,7 +9,8 @@ namespace PoorMan.KeyValueStore.Interception
     public class ProxyFactory
     {
         private static readonly Hashtable OpCodeTypeMapper = new Hashtable();
-        
+        private readonly ModuleBuilder _moduleBuilder;
+
         private const string AssemblyName = "ProxyAssembly";
         private const string ModuleName = "ProxyModule";
         private const string InterceptorSetter = "SetInterceptor";
@@ -26,25 +27,29 @@ namespace PoorMan.KeyValueStore.Interception
             OpCodeTypeMapper.Add(typeof(UInt16), OpCodes.Ldind_U2);
             OpCodeTypeMapper.Add(typeof(UInt32), OpCodes.Ldind_U4);
         }
-        
-        public object Create(Type type)
-        {
-            string typeName = type.FullName + "Proxy";
-            type = CreateType(type, typeName);
-            return Activator.CreateInstance(type);
-        }
 
-        private Type CreateType(Type parentType, string dynamicTypeName)
+        public ProxyFactory()
         {
             AppDomain domain = Thread.GetDomain();
             var assemblyName = new AssemblyName();
             assemblyName.Name = AssemblyName;
             assemblyName.Version = new Version(1, 0, 0, 0);
-                
+
             AssemblyBuilder assemblyBuilder = domain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-            ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule(ModuleName);
-                
-            TypeBuilder typeBuilder = moduleBuilder.DefineType(dynamicTypeName, 
+            _moduleBuilder = assemblyBuilder.DefineDynamicModule(ModuleName);
+        }
+
+        public object Create(Type type)
+        {
+            type = CreateType(type);
+            return Activator.CreateInstance(type);
+        }
+
+        public Type CreateType(Type parentType)
+        {
+            string dynamicTypeName = parentType.FullName + "Proxy";
+
+            TypeBuilder typeBuilder = _moduleBuilder.DefineType(dynamicTypeName, 
                 TypeAttributes.Public | TypeAttributes.AutoClass | TypeAttributes.AnsiClass | TypeAttributes.BeforeFieldInit, parentType, new []{typeof(IInterceptorSetter)});
             FieldBuilder handlerField = typeBuilder.DefineField(InterceptorName, typeof(ICallInterceptor), FieldAttributes.Private);
                 
@@ -78,8 +83,9 @@ namespace PoorMan.KeyValueStore.Interception
                     methodParameters[j] = methodParams[j].ParameterType;
                 }
 
+                var methodAttributes = MethodAttributes.Public | (methodInfo.IsVirtual ? MethodAttributes.NewSlot : MethodAttributes.NewSlot);
                 MethodBuilder methodBuilder = typeBuilder.DefineMethod(
-                    methodInfo.Name, MethodAttributes.Public | MethodAttributes.Virtual, CallingConventions.Standard, methodInfo.ReturnType, methodParameters);
+                    methodInfo.Name, methodAttributes, CallingConventions.Standard, methodInfo.ReturnType, methodParameters);
                
                 ILGenerator methodIL = methodBuilder.GetILGenerator();
                 if (!(methodInfo.ReturnType == typeof(void)))
