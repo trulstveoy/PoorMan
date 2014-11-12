@@ -130,7 +130,7 @@ namespace PoorMan.KeyValueStore
         private Tuple<XmlReader, string> ReadParent<T>(object id)
         {
             var decendants = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes().Where(type =>
-                !type.IsInterface && !type.IsAbstract && typeof (T).IsAssignableFrom(type))).Select(x => _getDefinition(x).Name).ToList();
+                !type.IsInterface && !type.IsAbstract && typeof (T).IsAssignableFrom(type) && !type.Name.EndsWith("Proxy"))).Select(x => _getDefinition(x).Name).ToList();
             var inClause = string.Join(",", Enumerable.Range(0, decendants.Count()).Select(x => string.Format("@{0}", x)));
 
             return SqlQuery(command =>
