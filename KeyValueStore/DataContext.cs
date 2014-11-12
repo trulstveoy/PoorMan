@@ -31,11 +31,13 @@ namespace PoorMan.KeyValueStore
     {
         private readonly string _connectionstring;
         private readonly Func<Type, TypeDefinition> _getDefinition;
+        private readonly Func<Type, TypeDefinition> _getProxyDefinition;
 
-        public DataContext(string connectionstring, Func<Type, TypeDefinition> getDefinition)
+        public DataContext(string connectionstring, Func<Type, TypeDefinition> getDefinition, Func<Type, TypeDefinition> getProxyDefinition)
         {
             _connectionstring = connectionstring;
             _getDefinition = getDefinition;
+            _getProxyDefinition = getProxyDefinition;
         }
 
         public void EnsureNewDatabase()
@@ -193,8 +195,9 @@ namespace PoorMan.KeyValueStore
             T instance = Read<T>(id);
             if (instance == null)
                 return default(T);
-            
-            var proxy = new ProxyFactory().Create(typeof(T));
+
+            var proxyType = _getProxyDefinition(typeof (T)).Type;
+            var proxy = Activator.CreateInstance(proxyType);
             ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
 
             return (T)proxy;

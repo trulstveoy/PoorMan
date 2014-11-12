@@ -83,7 +83,7 @@ namespace PoorMan.KeyValueStore.Interception
                     methodParameters[j] = methodParams[j].ParameterType;
                 }
 
-                var methodAttributes = MethodAttributes.Public | (methodInfo.IsVirtual ? MethodAttributes.NewSlot : MethodAttributes.NewSlot);
+                var methodAttributes = MethodAttributes.Public | MethodAttributes.Virtual;
                 MethodBuilder methodBuilder = typeBuilder.DefineMethod(
                     methodInfo.Name, methodAttributes, CallingConventions.Standard, methodInfo.ReturnType, methodParameters);
                

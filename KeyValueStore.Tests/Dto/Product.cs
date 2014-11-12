@@ -11,18 +11,18 @@ namespace KeyValueStore.Tests.Dto
     public class Product : IProduct
     {
         [Id]
-        public Guid Id { get; set; }
+        public virtual Guid Id { get; set; }
 
-        public string Text { get; set; }
+        public virtual string Text { get; set; }
     }
 
     public class ProductA : Product
     {
-        public string ValueA { get; set; }
+        public virtual string ValueA { get; set; }
     }
 
     public class ProductB : Product
     {
-        public string ValueB { get; set; }
+        public virtual string ValueB { get; set; }
     }
 }

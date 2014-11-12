@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using PoorMan.KeyValueStore.Annotation;
 using PoorMan.KeyValueStore.Interception;
@@ -14,6 +15,7 @@ namespace PoorMan.KeyValueStore
         private readonly List<Type> _types = new List<Type>();
 
         private Func<Type, TypeDefinition> _getDefinition;
+        private Func<Type, TypeDefinition> _getProxyDefinition;
         
         public Configuration(string connectionString)
         {
@@ -25,16 +27,38 @@ namespace PoorMan.KeyValueStore
             var typeArray = types.ToArray();
 
             var proxyFactory = new ProxyFactory();
-            var proxies = typeArray.Select(type => proxyFactory.CreateType(type)).ToList();
+            var defs = typeArray.Select(type =>
+            {
+                var proxyType = proxyFactory.CreateType(type);
 
-            var proxyDefinitions = proxies.ToDictionary(type => type, type => CreateDefinitionForProxy(type));
-            var definitions = typeArray.ToDictionary(type => type, type => CreateDefinition(type));
+                return new
+                {
+                    Type = type,
+                    Definition = CreateDefinition(type),
+                    ProxyType = proxyType,
+                    ProxyDefinition = CreateDefinitionForProxy(proxyType)
+                };
+            }).ToList();
+            
+            Dictionary<Type, TypeDefinition> definitions = defs.ToDictionary(x => x.Type, y => y.Definition);
+            Dictionary<Type, TypeDefinition> proxyDefinitions = defs.ToDictionary(x => x.Type, y => y.ProxyDefinition);
+            
             _getDefinition = new Func<Type, TypeDefinition>(type =>
             {
                 TypeDefinition typeDefinition;
                 if (!definitions.TryGetValue(type, out typeDefinition))
                     throw new InvalidOperationException(
                         string.Format("No type definition exists for type {0}. Configure WithDocuments", type.FullName));
+
+                return typeDefinition;
+            });
+
+            _getProxyDefinition = new Func<Type, TypeDefinition>(type =>
+            {
+                TypeDefinition typeDefinition;
+                if (!proxyDefinitions.TryGetValue(type, out typeDefinition))
+                    throw new InvalidOperationException(
+                        string.Format("No type definition exists for proxy type {0}. Configure WithDocuments", type.FullName));
 
                 return typeDefinition;
             });
@@ -46,13 +70,14 @@ namespace PoorMan.KeyValueStore
         {
             if(_getDefinition == null)
                 throw new InvalidOperationException("Types not probed. Use WithDocuments.");
-            return new DataContext(_connectionString, _getDefinition);
+            return new DataContext(_connectionString, _getDefinition, _getProxyDefinition);
         }
 
         private TypeDefinition CreateDefinitionForProxy(Type type)
         {
             return new TypeDefinition
             {
+                Type = type,
                 Serializer = CreateSerializerForProxy(type),
                 GetId = CreateGetId(type),
                 Name = GetTypeName(type)
@@ -63,6 +88,7 @@ namespace PoorMan.KeyValueStore
         {
             return new TypeDefinition
             {
+                Type = type,
                 Serializer = CreateSerializer(type),
                 GetId = CreateGetId(type),
                 Name = GetTypeName(type)
@@ -139,6 +165,7 @@ namespace PoorMan.KeyValueStore
 
     public class TypeDefinition
     {
+        public Type Type { get; set; }
         public string Name { get; set; }
         public XmlSerializer Serializer { get; set; }
         public Func<object, object> GetId { get; set; }
