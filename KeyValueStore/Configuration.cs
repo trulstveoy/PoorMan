@@ -73,6 +73,12 @@ namespace PoorMan.KeyValueStore
             return new DataContext(_connectionString, _getDefinition, _getProxyDefinition);
         }
 
+        public Configuration Output(Action<string, Func<Type, TypeDefinition>, Func<Type, TypeDefinition>> action)
+        {
+            action(_connectionString, _getDefinition, _getProxyDefinition);
+            return this;
+        }
+
         private TypeDefinition CreateDefinitionForProxy(Type type)
         {
             return new TypeDefinition
