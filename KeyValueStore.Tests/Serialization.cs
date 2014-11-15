@@ -16,7 +16,6 @@ namespace KeyValueStore.Tests
 
             var id = Guid.NewGuid();
             var challenge = new SerializerChallenge {Id = id,  Text = "abc", Text2 = "cde"};
-
             
             context.Create(challenge);
 

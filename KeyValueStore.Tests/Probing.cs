@@ -32,14 +32,14 @@ namespace KeyValueStore.Tests
         [TestMethod]
         public void SimpleClass()
         {
-            new Configuration(Constants.Connectionstring).WithDocuments(typeof (Foo)).Output((connectionString, getDef, getProxyDef) =>
-            {
-                var proxyType = getProxyDef(typeof (Foo)).Type;
-                var proxy = (Foo)Activator.CreateInstance(proxyType);
+            //new Configuration(Constants.Connectionstring).WithDocuments(typeof (Foo)).Output((connectionString, getDef, getProxyDef) =>
+            //{
+            //    var proxyType = getProxyDef(typeof (Foo)).Type;
+            //    var proxy = (Foo)Activator.CreateInstance(proxyType);
 
-                proxy.Key = "Foo";
-                proxy.Text = "Bar";
-            });
+            //    proxy.Key = "Foo";
+            //    proxy.Text = "Bar";
+            //});
         }
 
         [TestMethod]

@@ -26,6 +26,28 @@ namespace KeyValueStore.Tests
         }
 
         [TestMethod]
+        public void WriteReadWriteRead()
+        {
+            var datacontext = new Configuration(Constants.Connectionstring)
+                .WithDocuments(typeof(Order)).Create();
+            datacontext.EnsureNewDatabase();
+
+            var id = Guid.NewGuid();
+            var order = new Order { Id = id, Text = "Abc" };
+            datacontext.Create(order);
+
+            var order2 = datacontext.Read<Order>(id);
+            Assert.AreEqual(order.Text, order2.Text);
+
+            order2.Text = "Def";
+            datacontext.Update(order2);
+
+            var order3 = datacontext.Read<Order>(id);
+            
+            Assert.AreEqual(order2.Text, order3.Text);
+        }
+
+        [TestMethod]
         public void ReadNull()
         {
             var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Order)).Create();

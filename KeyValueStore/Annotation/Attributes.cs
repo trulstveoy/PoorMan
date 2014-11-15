@@ -13,4 +13,7 @@ namespace PoorMan.KeyValueStore.Annotation
             ParentIdProperty = parentIdProperty;
         }
     }
+
+    public class ChildAttribute : Attribute
+    { }
 }

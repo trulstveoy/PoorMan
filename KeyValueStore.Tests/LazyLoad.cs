@@ -26,7 +26,7 @@ namespace KeyValueStore.Tests
             datacontext.AppendChild(order, p1);
             datacontext.AppendChild(order, p2);
 
-            var result = datacontext.ReadWithRelations<Order>(id);
+            var result = datacontext.Read<Order>(id);
             List<Product> products = result.Products;
             Assert.AreEqual(2, products.Count);
         }
@@ -44,8 +44,9 @@ namespace KeyValueStore.Tests
             datacontext.Create(line);
             datacontext.AppendChild(order, line);
 
-            var result = datacontext.ReadWithRelations<OrderLine>(line.Id);
+            var result = datacontext.Read<OrderLine>(line.Id);
             Assert.IsNotNull(result.Order);
+            Assert.AreEqual("Abc", result.Order.Text);
             Assert.AreEqual(1, result.Order.OrderLines.Count);
         }
     }

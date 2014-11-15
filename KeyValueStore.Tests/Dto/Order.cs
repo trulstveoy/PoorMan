@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using PoorMan.KeyValueStore.Annotation;
-using PoorMan.KeyValueStore.Interception;
 
 namespace KeyValueStore.Tests.Dto
 {
     public class Order
     {
-        public string Text { get; set; }
+        public virtual string Text { get; set; }
 
         [Child]
         public virtual List<Product> Products { get; set; }
@@ -16,6 +15,6 @@ namespace KeyValueStore.Tests.Dto
         public virtual List<OrderLine> OrderLines { get; set; }
 
         [Id]
-        public Guid Id { get; set; }
+        public virtual Guid Id { get; set; }
     }
 }

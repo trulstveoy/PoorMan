@@ -6,7 +6,7 @@ using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
 using System.Xml;
-using PoorMan.KeyValueStore.Interception;
+using Castle.DynamicProxy;
 
 namespace PoorMan.KeyValueStore
 {
@@ -15,10 +15,10 @@ namespace PoorMan.KeyValueStore
         void EnsureNewDatabase();
         void Create<T>(T document) where T : class;
         void Update<T>(T document) where T : class;
-        T Read<T>(object id);
-        T ReadWithRelations<T>(object id);
+        T Read<T>(object id) where T : class;
+        //T ReadWithRelations<T>(object id);
         object Read(object id, Type type);
-        object ReadWithRelations(object id, Type type);
+        //object ReadWithRelations(object id, Type type);
         void AppendChild<TP, TC>(TP parent, TC child);
         void RemoveChild<TP, TC>(TP parent, TC child);
         List<TC> GetChildren<TP, TC>(TP document);
@@ -29,15 +29,15 @@ namespace PoorMan.KeyValueStore
 
     internal class DataContext : IDataContext
     {
+        private static readonly ProxyGenerator ProxyGenerator = new ProxyGenerator();
+
         private readonly string _connectionstring;
         private readonly Func<Type, TypeDefinition> _getDefinition;
-        private readonly Func<Type, TypeDefinition> _getProxyDefinition;
 
-        public DataContext(string connectionstring, Func<Type, TypeDefinition> getDefinition, Func<Type, TypeDefinition> getProxyDefinition)
+        public DataContext(string connectionstring, Func<Type, TypeDefinition> getDefinition)
         {
             _connectionstring = connectionstring;
             _getDefinition = getDefinition;
-            _getProxyDefinition = getProxyDefinition;
         }
 
         public void EnsureNewDatabase()
@@ -113,18 +113,32 @@ namespace PoorMan.KeyValueStore
         public void Update<T>(T document) where T : class
         {
             ValidateDocument(document);
-            var id = _getDefinition(document.GetType()).GetId(document);
+
+            var instance = GetInstance(document);
+
+            var id = _getDefinition(instance.GetType()).GetId(instance);
 
             SqlAction(command =>
-                Serialize(document, sqlXml =>
+                Serialize(instance, sqlXml =>
                 {
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", _getDefinition(document.GetType()).Name);
+                    command.Parameters.AddWithValue("@type", _getDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
             ));
+        }
+
+        private static object GetInstance(object document)
+        {
+            object instance = document;
+            var proxy = document as IProxy;
+            if (proxy != null)
+            {
+                instance = proxy.GetInstance();
+            }
+            return instance;
         }
 
         private Tuple<XmlReader, string> ReadParent<T>(object id)
@@ -166,16 +180,18 @@ namespace PoorMan.KeyValueStore
             });
         }
 
-        public T Read<T>(object id)
+        public T Read<T>(object id) where T : class
         {
             ValidateId(id);
-
-            var result = typeof (T).IsInterface ? ReadParent<T>(id) : ReadConcrete(id, typeof(T));
+            
+            var result = ReadConcrete(id, typeof(T));
 
             if (result == null)
                 return default(T);
            
-            return (T)Deserialize(result.Item1, Type.GetType(result.Item2));
+            var instance = (T)Deserialize(result.Item1, Type.GetType(result.Item2));
+
+            return (T)ProxyGenerator.CreateClassProxy(typeof(T), new []{typeof(IProxy)}, new CallInterceptor(instance, this, id));
         }
 
         public object Read(object id, Type type)
@@ -190,30 +206,37 @@ namespace PoorMan.KeyValueStore
             return Deserialize(result.Item1, type);
         }
 
-        public T ReadWithRelations<T>(object id)
-        {
-            T instance = Read<T>(id);
-            if (instance == null)
-                return default(T);
+        //public T ReadWithRelations<T>(object id)
+        //{
+        //    ValidateId(id);
+        //    var result = ReadConcrete(id, typeof(T));
 
-            var proxyType = _getProxyDefinition(typeof (T)).Type;
-            var proxy = Activator.CreateInstance(proxyType);
-            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
+        //    //var proxyType = _getProxyDefinition(typeof(T)).Type;
+        //    //var instance = Deserialize(result.Item1, proxyType);
+            
+        //    //if (instance == null)
+        //    //    return default(T);
 
-            return (T)proxy;
-        }
+        //    //((IInterceptorSetter)instance).SetInterceptor(new CallInterceptor(instance, this, id));
+            
+        //    //return (T)instance;
 
-        public object ReadWithRelations(object id, Type type)
-        {
-            object instance = Read(id, type);
-            if (instance == null)
-                return null;
+        //    return default(T);
+        //}
 
-            var proxy = new ProxyFactory().Create(type);
-            ((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
+        //public object ReadWithRelations(object id, Type type)
+        //{
+        //    object instance = Read(id, type);
+        //    if (instance == null)
+        //        return null;
 
-            return proxy;
-        }
+        //    //var proxy = new ProxyFactory().Create(type);
+        //    //((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
+
+        //    //return proxy;
+
+        //    return null;
+        //}
 
         private T SqlQuery<T>(Func<SqlCommand, T> func)
         {
@@ -299,7 +322,8 @@ namespace PoorMan.KeyValueStore
                 }).ToList();
             });
 
-            return result.Select(x => Deserialize(x.Value, Type.GetType(x.Type))).ToList();
+            var retVal = result.Select(x => Deserialize(x.Value, Type.GetType(x.Type))).ToList();
+            return retVal;
         }
 
         public List<TC> GetChildren<TP, TC>(TP parent)
