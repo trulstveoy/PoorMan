@@ -42,7 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Annotation\Attributes.cs" />
+    <Compile Include="Attributes.cs" />
     <Compile Include="CallInterceptor.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="DataContext.cs" />

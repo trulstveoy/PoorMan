@@ -5,7 +5,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using Castle.DynamicProxy;
-using PoorMan.KeyValueStore.Annotation;
 
 namespace PoorMan.KeyValueStore
 {

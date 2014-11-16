@@ -1,16 +1,19 @@
 ﻿using System;
-using PoorMan.KeyValueStore.Annotation;
+using PoorMan.KeyValueStore;
 
 namespace KeyValueStore.Tests.Dto
 {
     public class OrderLine
     {
         [Id]
-        public Guid Id { get; set; }
+        public virtual Guid Id { get; set; }
 
-        public Guid OrderId { get; set; }
+        public virtual Guid OrderId { get; set; }
 
-        [ParentId("OrderId")]
-        public virtual Order Order { get; set; }
+        [Parent]
+        public virtual Order GetOrder(object id)
+        {
+            return null;
+        }
     }
 }

@@ -2,7 +2,6 @@
 using KeyValueStore.Tests.Dto;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PoorMan.KeyValueStore;
-using PoorMan.KeyValueStore.Annotation;
 
 namespace KeyValueStore.Tests
 {

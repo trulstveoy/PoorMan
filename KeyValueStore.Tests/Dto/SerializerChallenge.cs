@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using PoorMan.KeyValueStore.Annotation;
+using PoorMan.KeyValueStore;
 
 namespace KeyValueStore.Tests.Dto
 {

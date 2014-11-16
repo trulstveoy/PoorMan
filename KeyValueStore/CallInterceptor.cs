@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using Castle.DynamicProxy;
-using PoorMan.KeyValueStore.Annotation;
 
 namespace PoorMan.KeyValueStore
 {
@@ -48,20 +47,17 @@ namespace PoorMan.KeyValueStore
                     invocation.ReturnValue = list;
                     return;
                 }
+            }
 
-                CustomAttributeData parentIdAttribute = _instance.GetType().GetProperties()
-                    .Where(x => x.Name == propertyName).SelectMany(x => x.CustomAttributes)
-                    .FirstOrDefault(x => x.AttributeType == typeof(ParentIdAttribute));
-                if (parentIdAttribute != null)
-                {
-                    string keyCol = (string)parentIdAttribute.ConstructorArguments.First().Value;
-                    object parentId = _instance.GetType().GetProperties().FirstOrDefault(x => x.Name == keyCol).GetValue(_instance);
+            CustomAttributeData parentAttribute = invocation.Method.CustomAttributes.FirstOrDefault(x => x.AttributeType == typeof(ParentAttribute));
+            if (parentAttribute != null)
+            {
+                object id = invocation.Arguments[0];
+                var returnType = invocation.Method.ReturnType;
 
-                    Type returnType = invocation.Method.ReturnType;
-                    var result = _dataContext.Read(parentId, returnType);
-                    invocation.ReturnValue = result;
-                    return;
-                }
+                var result = _dataContext.Read(id, returnType);
+                invocation.ReturnValue = result;
+                return;
             }
 
             invocation.ReturnValue = invocation.Method.Invoke(_instance, invocation.Arguments);

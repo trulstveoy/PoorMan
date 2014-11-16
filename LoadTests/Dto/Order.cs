@@ -1,5 +1,5 @@
 ﻿using System;
-using PoorMan.KeyValueStore.Annotation;
+using PoorMan.KeyValueStore;
 
 namespace LoadTests.Dto
 {

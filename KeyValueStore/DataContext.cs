@@ -16,9 +16,7 @@ namespace PoorMan.KeyValueStore
         void Create<T>(T document) where T : class;
         void Update<T>(T document) where T : class;
         T Read<T>(object id) where T : class;
-        //T ReadWithRelations<T>(object id);
         object Read(object id, Type type);
-        //object ReadWithRelations(object id, Type type);
         void AppendChild<TP, TC>(TP parent, TC child);
         void RemoveChild<TP, TC>(TP parent, TC child);
         List<TC> GetChildren<TP, TC>(TP document);
@@ -182,16 +180,11 @@ namespace PoorMan.KeyValueStore
 
         public T Read<T>(object id) where T : class
         {
-            ValidateId(id);
-            
-            var result = ReadConcrete(id, typeof(T));
-
+            var result = Read(id, typeof (T));
             if (result == null)
                 return default(T);
-           
-            var instance = (T)Deserialize(result.Item1, Type.GetType(result.Item2));
 
-            return (T)ProxyGenerator.CreateClassProxy(typeof(T), new []{typeof(IProxy)}, new CallInterceptor(instance, this, id));
+            return (T) result;
         }
 
         public object Read(object id, Type type)
@@ -203,41 +196,10 @@ namespace PoorMan.KeyValueStore
             if (result == null)
                 return null;
 
-            return Deserialize(result.Item1, type);
+            var instance = Deserialize(result.Item1, type);
+            return ProxyGenerator.CreateClassProxy(type, new[] { typeof(IProxy) }, new CallInterceptor(instance, this, id));
         }
-
-        //public T ReadWithRelations<T>(object id)
-        //{
-        //    ValidateId(id);
-        //    var result = ReadConcrete(id, typeof(T));
-
-        //    //var proxyType = _getProxyDefinition(typeof(T)).Type;
-        //    //var instance = Deserialize(result.Item1, proxyType);
-            
-        //    //if (instance == null)
-        //    //    return default(T);
-
-        //    //((IInterceptorSetter)instance).SetInterceptor(new CallInterceptor(instance, this, id));
-            
-        //    //return (T)instance;
-
-        //    return default(T);
-        //}
-
-        //public object ReadWithRelations(object id, Type type)
-        //{
-        //    object instance = Read(id, type);
-        //    if (instance == null)
-        //        return null;
-
-        //    //var proxy = new ProxyFactory().Create(type);
-        //    //((IInterceptorSetter)proxy).SetInterceptor(new CallInterceptor(instance, this, id));
-
-        //    //return proxy;
-
-        //    return null;
-        //}
-
+      
         private T SqlQuery<T>(Func<SqlCommand, T> func)
         {
             using (var connection = new SqlConnection(_connectionstring))
