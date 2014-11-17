@@ -20,9 +20,9 @@ namespace KeyValueStore.Tests
             var p1 = new Product() { Id = Guid.NewGuid(), Text = "P1" };
             var p2 = new Product() { Id = Guid.NewGuid(), Text = "P2" };
 
-            datacontext.Create(order);
-            datacontext.Create(p1);
-            datacontext.Create(p2);
+            datacontext.Insert(order);
+            datacontext.Insert(p1);
+            datacontext.Insert(p2);
             datacontext.AppendChild(order, p1);
             datacontext.AppendChild(order, p2);
 
@@ -40,8 +40,8 @@ namespace KeyValueStore.Tests
             var order = new Order() { Id = Guid.NewGuid(), Text = "Abc" };
             var line = new OrderLine() { Id = Guid.NewGuid(), OrderId = order.Id };
             
-            datacontext.Create(order);
-            datacontext.Create(line);
+            datacontext.Insert(order);
+            datacontext.Insert(line);
             datacontext.AppendChild(order, line);
 
             var result = datacontext.Read<OrderLine>(line.Id);

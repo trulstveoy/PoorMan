@@ -62,10 +62,8 @@
     <Compile Include="CRUDTests.cs" />
     <Compile Include="Dto\SerializerChallenge.cs" />
     <Compile Include="Inheritance.cs" />
-    <Compile Include="Probing.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="LazyLoad.cs" />
-    <Compile Include="Proxy.cs" />
     <Compile Include="RelationsTests.cs" />
     <Compile Include="Serialization.cs" />
   </ItemGroup>

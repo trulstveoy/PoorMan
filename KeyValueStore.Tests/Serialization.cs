@@ -17,7 +17,7 @@ namespace KeyValueStore.Tests
             var id = Guid.NewGuid();
             var challenge = new SerializerChallenge {Id = id,  Text = "abc", Text2 = "cde"};
             
-            context.Create(challenge);
+            context.Insert(challenge);
 
             var result = context.Read<SerializerChallenge>(id);
             Assert.IsNotNull(result);

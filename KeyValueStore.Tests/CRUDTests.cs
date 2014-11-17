@@ -19,7 +19,7 @@ namespace KeyValueStore.Tests
             var id = Guid.NewGuid();
             var order = new Order {Id = id, Text = "Abc"};
 
-            datacontext.Create(order);
+            datacontext.Insert(order);
             var order2 = datacontext.Read<Order>(id);
 
             Assert.AreEqual(order.Text, order2.Text);
@@ -34,7 +34,7 @@ namespace KeyValueStore.Tests
 
             var id = Guid.NewGuid();
             var order = new Order { Id = id, Text = "Abc" };
-            datacontext.Create(order);
+            datacontext.Insert(order);
 
             var order2 = datacontext.Read<Order>(id);
             Assert.AreEqual(order.Text, order2.Text);
@@ -66,7 +66,7 @@ namespace KeyValueStore.Tests
 
             var id = Guid.NewGuid();
             
-            datacontext.Create(new Order {Id = id, Text = "Abc" });
+            datacontext.Insert(new Order {Id = id, Text = "Abc" });
             datacontext.Update(new Order() {Id= id, Text = "Def"});
 
             var result = datacontext.Read<Order>(id);
@@ -81,7 +81,7 @@ namespace KeyValueStore.Tests
 
             for (int i = 0; i < 10; i++)
             {
-                datacontext.Create(new Product {Id = Guid.NewGuid(), Text = "abc"});
+                datacontext.Insert(new Product {Id = Guid.NewGuid(), Text = "abc"});
             }
 
             var products = datacontext.ReadAll<Product>();
@@ -95,11 +95,27 @@ namespace KeyValueStore.Tests
             datacontext.EnsureNewDatabase();
 
             var id = Guid.NewGuid();
-            datacontext.Create(new Product{Id = id, Text = "abc"});
+            datacontext.Insert(new Product{Id = id, Text = "abc"});
 
             datacontext.Delete<Product>(id);
 
             Assert.IsNull(datacontext.Read<Product>(id));
+        }
+
+        [TestMethod]
+        public void Upsert()
+        {
+            var datacontext = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Product)).Create();
+            datacontext.EnsureNewDatabase();
+
+            var id = Guid.NewGuid();
+            datacontext.Upsert(new Product{ Id = id, Text="abc"});
+
+            Assert.AreEqual("abc", datacontext.Read<Product>(id).Text);
+
+            datacontext.Upsert(new Product { Id = id, Text = "cba" });
+
+            Assert.AreEqual("cba", datacontext.Read<Product>(id).Text);
         }
     }
 }

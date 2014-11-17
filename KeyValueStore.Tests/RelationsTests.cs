@@ -18,12 +18,12 @@ namespace KeyValueStore.Tests
             context.EnsureNewDatabase();
 
             var order = new Order { Id = new Guid(), Text = "parent" };
-            context.Create(order);
+            context.Insert(order);
 
             for (int i = 0; i < 10; i++)
             {
                 var product = new Product {Id = Guid.NewGuid(), Text = "child"};
-                context.Create(product);
+                context.Insert(product);
                 context.AppendChild(order, product);
             }
 
@@ -41,12 +41,12 @@ namespace KeyValueStore.Tests
             context.EnsureNewDatabase();
 
             var order = new Order {Id = Guid.NewGuid(), Text = "parent"};
-            context.Create(order);
+            context.Insert(order);
 
             var products = Enumerable.Range(0, 10).Select(x => new Product() {Id = Guid.NewGuid(), Text = "child" }).ToList();
             foreach (var product in products)
             {
-                context.Create(product);
+                context.Insert(product);
                 context.AppendChild(order, product);
             }
 

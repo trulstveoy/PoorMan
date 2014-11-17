@@ -13,8 +13,9 @@ namespace PoorMan.KeyValueStore
     public interface IDataContext
     {
         void EnsureNewDatabase();
-        void Create<T>(T document) where T : class;
+        void Insert<T>(T document) where T : class;
         void Update<T>(T document) where T : class;
+        void Upsert<T>(T document) where T : class;
         T Read<T>(object id) where T : class;
         object Read(object id, Type type);
         void AppendChild<TP, TC>(TP parent, TC child);
@@ -22,7 +23,7 @@ namespace PoorMan.KeyValueStore
         List<TC> GetChildren<TP, TC>(TP document);
         List<object> GetChildren(Type childType, object parentId);
         List<T> ReadAll<T>();
-        void Delete<T>(object id);
+        void Delete<T>(object id) where T : class;
     }
 
     internal class DataContext : IDataContext
@@ -102,7 +103,7 @@ namespace PoorMan.KeyValueStore
             return GetDefinition(type).Serializer.Deserialize(reader);
         }
         
-        public void Create<T>(T document) where T : class
+        public void Insert<T>(T document) where T : class
         {
             ValidateDocument(document);
             var id = GetDefinition(document.GetType()).GetId(document);
@@ -130,6 +131,30 @@ namespace PoorMan.KeyValueStore
                 Serialize(instance, sqlXml =>
                 {
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
+                    command.Parameters.AddWithValue("@id", id);
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
+                    command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
+                    command.ExecuteNonQuery();
+                }
+            ));
+        }
+
+        public void Upsert<T>(T document) where T : class
+        {
+            ValidateDocument(document);
+
+            var instance = GetInstance(document);
+
+            var id = GetDefinition(instance.GetType()).GetId(instance);
+
+            SqlAction(command =>
+                Serialize(instance, sqlXml =>
+                {
+                    const string sql = "MERGE INTO KeyValueStore AS target USING (VALUES(@id, @value, @type, SYSDATETIME())) AS source (Id, Value, Type, LastUpdated) " +
+                                       "ON source.Id = target.Id AND source.Type = target.Type " +
+                                       "WHEN MATCHED THEN UPDATE SET Value = source.Value " +
+                                       "WHEN NOT MATCHED THEN INSERT (Id, Value, Type, LastUpdated) VALUES(source.Id, source.Value, source.Type, source.LastUpdated);";
+                    command.CommandText = sql;
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
@@ -321,7 +346,7 @@ namespace PoorMan.KeyValueStore
             return result.Select(x => (T)Deserialize(x.Item1, Type.GetType(x.Item2))).ToList();
         }
 
-        public void Delete<T>(object id)
+        public void Delete<T>(object id) where T : class
         {
             ValidateId(id);
             

@@ -27,7 +27,7 @@ namespace LoadTests
                 using(var transaction = new TransactionScope())
                 { 
                     var context =  configuration.Create();
-                    context.Create(order);
+                    context.Insert(order);
                     transaction.Complete();
                 }
                 Console.Write(".");
