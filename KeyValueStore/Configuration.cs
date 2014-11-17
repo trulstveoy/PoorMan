@@ -2,19 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Xml.Serialization;
-using Castle.DynamicProxy;
 
 namespace PoorMan.KeyValueStore
 {
     public class Configuration
     {
         private readonly string _connectionString;
-        private readonly List<Type> _types = new List<Type>();
+       
+        private Dictionary<Type, TypeDefinition> _typeDefinitions;
 
-        private Func<Type, TypeDefinition> _getDefinition;
-        
         public Configuration(string connectionString)
         {
             _connectionString = connectionString;
@@ -23,56 +20,28 @@ namespace PoorMan.KeyValueStore
         public Configuration WithDocuments(params Type[] types)
         {
             var typeArray = types.ToArray();
-
-            var proxyGenerator = new ProxyGenerator();
-            var definitions = typeArray.Select(type =>
+            _typeDefinitions = typeArray.Select(type => new
             {
-                return new
-                {
-                    Type = type,
-                    Definition = CreateDefinition(type)
-                };
+                Type = type,
+                Definition = CreateDefinition(type)
             }).ToDictionary(x => x.Type, y => y.Definition);
-            
-            _getDefinition = new Func<Type, TypeDefinition>(type =>
-            {
-                TypeDefinition typeDefinition;
-                if (!definitions.TryGetValue(type, out typeDefinition))
-                    throw new InvalidOperationException(
-                        string.Format("No type definition exists for type {0}. Configure WithDocuments", type.FullName));
-
-                return typeDefinition;
-            });
-
-           
 
             return this;
         }
 
         public IDataContext Create()
         {
-            if(_getDefinition == null)
+            if(_typeDefinitions == null)
                 throw new InvalidOperationException("Types not probed. Use WithDocuments.");
-            return new DataContext(_connectionString, _getDefinition);
+            return new DataContext(_connectionString, _typeDefinitions);
         }
 
-        public Configuration Output(Action<string, Func<Type, TypeDefinition>> action)
+        public Configuration Output(Action<string, Dictionary<Type, TypeDefinition>> action)
         {
-            action(_connectionString, _getDefinition);
+            action(_connectionString, _typeDefinitions);
             return this;
         }
-
-        private TypeDefinition CreateDefinitionForProxy(Type type)
-        {
-            return new TypeDefinition
-            {
-                Type = type,
-                Serializer = CreateSerializerForProxy(type),
-                GetId = CreateGetId(type),
-                Name = GetTypeName(type)
-            };
-        }
-
+        
         private TypeDefinition CreateDefinition(Type type)
         {
             return new TypeDefinition
@@ -106,28 +75,6 @@ namespace PoorMan.KeyValueStore
                 }
                 return id;
             };
-        }
-
-        private XmlSerializer CreateSerializerForProxy(Type type)
-        {
-            //TODO: remove?
-            if (type.IsInterface)
-                return null;
-
-            var baseType = type.BaseType;
-
-            var overrides = new XmlAttributeOverrides();
-
-            overrides.Add(baseType, new XmlAttributes { XmlType = new XmlTypeAttribute("IgnoreBaseType") });
-            overrides.Add(type, new XmlAttributes { XmlType = new XmlTypeAttribute(baseType.Name) });
-            foreach (var propertyInfo in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.GetSetMethod() == null || x.PropertyType.IsInterface))
-            {
-                if (propertyInfo.DeclaringType == null)
-                    throw new InvalidOperationException(string.Format("Property {0} has no declaring type", propertyInfo.Name));
-                overrides.Add(propertyInfo.DeclaringType, propertyInfo.Name, new XmlAttributes { XmlIgnore = true });
-            }
-
-            return new XmlSerializer(type, overrides);
         }
 
         private XmlSerializer CreateSerializer(Type type)

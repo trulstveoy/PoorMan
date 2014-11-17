@@ -30,12 +30,22 @@ namespace PoorMan.KeyValueStore
         private static readonly ProxyGenerator ProxyGenerator = new ProxyGenerator();
 
         private readonly string _connectionstring;
-        private readonly Func<Type, TypeDefinition> _getDefinition;
+        private readonly Dictionary<Type, TypeDefinition> _typeDefinitions;
 
-        public DataContext(string connectionstring, Func<Type, TypeDefinition> getDefinition)
+        public DataContext(string connectionstring, Dictionary<Type, TypeDefinition> typeDefinitions)
         {
             _connectionstring = connectionstring;
-            _getDefinition = getDefinition;
+            _typeDefinitions = typeDefinitions;
+        }
+
+        private TypeDefinition GetDefinition(Type type)
+        {
+            TypeDefinition typeDefinition;
+            if (!_typeDefinitions.TryGetValue(type, out typeDefinition))
+                throw new InvalidOperationException(
+                    string.Format("No type definition exists for type {0}. Configure WithDocuments", type.FullName));
+
+            return typeDefinition;
         }
 
         public void EnsureNewDatabase()
@@ -82,20 +92,20 @@ namespace PoorMan.KeyValueStore
         {
             using (var stream = new MemoryStream())
             {
-                _getDefinition(obj.GetType()).Serializer.Serialize(stream, obj);
+                GetDefinition(obj.GetType()).Serializer.Serialize(stream, obj);
                 action(new SqlXml(stream));
             }
         }
 
         private object Deserialize(XmlReader reader, Type type)
         {
-            return _getDefinition(type).Serializer.Deserialize(reader);
+            return GetDefinition(type).Serializer.Deserialize(reader);
         }
         
         public void Create<T>(T document) where T : class
         {
             ValidateDocument(document);
-            var id = _getDefinition(document.GetType()).GetId(document);
+            var id = GetDefinition(document.GetType()).GetId(document);
 
             SqlAction(command => 
                 Serialize(document, sqlXml => 
@@ -103,7 +113,7 @@ namespace PoorMan.KeyValueStore
                     command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", _getDefinition(document.GetType()).Name);
+                    command.Parameters.AddWithValue("@type", GetDefinition(document.GetType()).Name);
                     command.ExecuteNonQuery();
                 }));
         }
@@ -114,7 +124,7 @@ namespace PoorMan.KeyValueStore
 
             var instance = GetInstance(document);
 
-            var id = _getDefinition(instance.GetType()).GetId(instance);
+            var id = GetDefinition(instance.GetType()).GetId(instance);
 
             SqlAction(command =>
                 Serialize(instance, sqlXml =>
@@ -122,7 +132,7 @@ namespace PoorMan.KeyValueStore
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
                     command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
-                    command.Parameters.AddWithValue("@type", _getDefinition(instance.GetType()).Name);
+                    command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
             ));
@@ -139,45 +149,6 @@ namespace PoorMan.KeyValueStore
             return instance;
         }
 
-        private Tuple<XmlReader, string> ReadParent<T>(object id)
-        {
-            var decendants = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes().Where(type =>
-                !type.IsInterface && !type.IsAbstract && typeof (T).IsAssignableFrom(type) && !type.Name.EndsWith("Proxy"))).Select(x => _getDefinition(x).Name).ToList();
-            var inClause = string.Join(",", Enumerable.Range(0, decendants.Count()).Select(x => string.Format("@{0}", x)));
-
-            return SqlQuery(command =>
-            {
-                command.CommandText = string.Format("SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type IN ({0})", inClause);
-                command.Parameters.AddWithValue("@id", id);
-                for (int i = 0; i < decendants.Count; i++)
-                    command.Parameters.AddWithValue("@" + i, decendants[i]);
-                var reader = command.ExecuteReader();
-                if (!reader.Read())
-                    return null;
-
-                return new Tuple<XmlReader, string>(
-                    reader.GetXmlReader(reader.GetOrdinal("Value")),
-                    reader.GetString(reader.GetOrdinal("Type")));
-            });
-        }
-
-        private Tuple<XmlReader, string> ReadConcrete(object id, Type type)
-        {
-            return SqlQuery(command =>
-            {
-                command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
-                command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", _getDefinition(type).Name);
-                var reader = command.ExecuteReader();
-                if (!reader.Read())
-                    return null;
-
-                return new Tuple<XmlReader, string>(
-                    reader.GetXmlReader(reader.GetOrdinal("Value")),
-                    reader.GetString(reader.GetOrdinal("Type")));
-            });
-        }
-
         public T Read<T>(object id) where T : class
         {
             var result = Read(id, typeof (T));
@@ -191,7 +162,19 @@ namespace PoorMan.KeyValueStore
         {
             ValidateId(id);
 
-            var result = ReadConcrete(id, type);
+            var result = SqlQuery(command =>
+            {
+                command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE Id = @id AND type = @type";
+                command.Parameters.AddWithValue("@id", id);
+                command.Parameters.AddWithValue("@type", GetDefinition(type).Name);
+                var reader = command.ExecuteReader();
+                if (!reader.Read())
+                    return null;
+
+                return new Tuple<XmlReader, string>(
+                    reader.GetXmlReader(reader.GetOrdinal("Value")),
+                    reader.GetString(reader.GetOrdinal("Type")));
+            });
 
             if (result == null)
                 return null;
@@ -227,8 +210,8 @@ namespace PoorMan.KeyValueStore
         public void AppendChild<TP, TC>(TP parent, TC child)
         {
             ValidateDocument(parent, child);
-            var parentDef = _getDefinition(parent.GetType());
-            var childDef = _getDefinition(child.GetType());
+            var parentDef = GetDefinition(parent.GetType());
+            var childDef = GetDefinition(child.GetType());
             
             SqlAction(command =>
             {
@@ -244,8 +227,8 @@ namespace PoorMan.KeyValueStore
         public void RemoveChild<TP, TC>(TP parent, TC child)
         {
             ValidateDocument(parent, child);
-            var parentDef = _getDefinition(parent.GetType());
-            var childDef = _getDefinition(child.GetType());
+            var parentDef = GetDefinition(parent.GetType());
+            var childDef = GetDefinition(child.GetType());
             
             SqlAction(command =>
             {
@@ -297,7 +280,7 @@ namespace PoorMan.KeyValueStore
             var result = SqlQuery(command =>
             {
                 command.CommandText = query;
-                command.Parameters.AddWithValue("@parent", _getDefinition(parent.GetType()).GetId(parent));
+                command.Parameters.AddWithValue("@parent", GetDefinition(parent.GetType()).GetId(parent));
                 var reader = command.ExecuteReader();
 
                 var list = new List<Tuple<XmlReader, string>>();
@@ -321,7 +304,7 @@ namespace PoorMan.KeyValueStore
             var result = SqlQuery(command =>
             {
                 command.CommandText = "SELECT Value, Type FROM KeyValueStore WHERE type = @type";
-                command.Parameters.AddWithValue("@type", _getDefinition(typeof(T)).Name);
+                command.Parameters.AddWithValue("@type", GetDefinition(typeof(T)).Name);
                 var reader = command.ExecuteReader();
 
                 var values = new List<Tuple<XmlReader, string>>();
@@ -346,7 +329,7 @@ namespace PoorMan.KeyValueStore
             {
                 command.CommandText = "DELETE FROM KeyValueStore WHERE Id = @id and Type = @type";
                 command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@type", _getDefinition(typeof(T)).Name);
+                command.Parameters.AddWithValue("@type", GetDefinition(typeof(T)).Name);
                 command.ExecuteNonQuery();
             });
         }
