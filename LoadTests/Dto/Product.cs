@@ -1,7 +1,11 @@
-﻿namespace LoadTests.Dto
+﻿using PoorMan.KeyValueStore;
+
+namespace LoadTests.Dto
 {
     public class Product
     {
-        public string Text { get; set; } 
+        [Id]
+        public virtual string Id { get; set; }
+        public virtual string Text { get; set; } 
     }
 }

@@ -292,36 +292,20 @@ namespace PoorMan.KeyValueStore
                 }).ToList();
             });
 
-            var retVal = result.Select(x => Deserialize(x.Value, Type.GetType(x.Type))).ToList();
+            var retVal = result.Select(x =>
+            {
+                var type = Type.GetType(x.Type);
+                var instance = Deserialize(x.Value, type);
+                return ProxyGenerator.CreateClassProxy(type, new[] { typeof(IProxy) }, new CallInterceptor(instance, this, GetDefinition(type).GetId(instance)));
+            }).ToList();
             return retVal;
         }
 
         public List<TC> GetChildren<TP, TC>(TP parent)
         {
-            const string query = @"SELECT Value, Type FROM KeyValueStore k
-                                  JOIN Relation r on r.Child = k.Id 
-                                  AND r.Parent = @parent";
-
-            var result = SqlQuery(command =>
-            {
-                command.CommandText = query;
-                command.Parameters.AddWithValue("@parent", GetDefinition(parent.GetType()).GetId(parent));
-                var reader = command.ExecuteReader();
-
-                var list = new List<Tuple<XmlReader, string>>();
-                while (reader.Read())
-                {
-                    list.Add(new Tuple<XmlReader, string>(reader.GetXmlReader(reader.GetOrdinal("Value")), reader.GetString(reader.GetOrdinal("Type"))));
-                }
-
-                return list.Select(x => new
-                {
-                    Value = x.Item1,
-                    Type = x.Item2
-                }).ToList();
-            });
-
-            return result.Select(x => (TC)Deserialize(x.Value, Type.GetType(x.Type))).ToList();
+            var id = GetDefinition(parent.GetType()).GetId(parent);
+            var result = GetChildren(typeof (TC), id);
+            return result.Select(x => (TC) x).ToList();
         }
 
         public List<T> ReadAll<T>()
