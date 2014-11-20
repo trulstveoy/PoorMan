@@ -59,5 +59,26 @@ namespace KeyValueStore.Tests
             Assert.AreEqual(5, children.Count);
             Assert.AreEqual("child", children.First().Text);
         }
+
+        [TestMethod]
+        public void AppendRemoveWithProxies()
+        {
+            var context = new Configuration(Constants.Connectionstring).WithDocuments(typeof(Product), typeof(Order)).Create();
+            context.EnsureNewDatabase();
+
+            var orderId = Guid.NewGuid();  
+            var productId = Guid.NewGuid();
+            context.Insert(new Order { Id = orderId, Text = "parent" });
+            context.Insert(new Product() {Id = productId, Text = "child"});
+
+            var order = context.Read<Order>(orderId);
+            var product = context.Read<Product>(productId);
+
+            context.AppendChild(order, product);
+            Assert.AreEqual(1, context.GetChildren<Order, Product>(order).Count);
+
+            context.RemoveChild(order, product);
+            Assert.AreEqual(0, context.GetChildren<Order, Product>(order).Count);
+        }
     }
 }

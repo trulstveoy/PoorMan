@@ -235,15 +235,19 @@ namespace PoorMan.KeyValueStore
         public void AppendChild<TP, TC>(TP parent, TC child)
         {
             ValidateDocument(parent, child);
-            var parentDef = GetDefinition(parent.GetType());
-            var childDef = GetDefinition(child.GetType());
+
+            var parentInstance = GetInstance(parent);
+            var childInstance = GetInstance(child);
+
+            var parentDef = GetDefinition(parentInstance.GetType());
+            var childDef = GetDefinition(childInstance.GetType());
             
             SqlAction(command =>
             {
                 command.CommandText = "INSERT INTO Relation (Parent, ParentType, Child, ChildType, LastUpdated) VALUES(@parent, @parentType, @child, @childType, SYSDATETIME())";
-                command.Parameters.AddWithValue("@parent", parentDef.GetId(parent));
+                command.Parameters.AddWithValue("@parent", parentDef.GetId(parentInstance));
                 command.Parameters.AddWithValue("@parentType", parentDef.Name);
-                command.Parameters.AddWithValue("@child", childDef.GetId(child));
+                command.Parameters.AddWithValue("@child", childDef.GetId(childInstance));
                 command.Parameters.AddWithValue("@childType", childDef.Name);
                 command.ExecuteNonQuery();
             });
@@ -252,15 +256,19 @@ namespace PoorMan.KeyValueStore
         public void RemoveChild<TP, TC>(TP parent, TC child)
         {
             ValidateDocument(parent, child);
-            var parentDef = GetDefinition(parent.GetType());
-            var childDef = GetDefinition(child.GetType());
+
+            var parentInstance = GetInstance(parent);
+            var childInstance = GetInstance(child);
+
+            var parentDef = GetDefinition(parentInstance.GetType());
+            var childDef = GetDefinition(childInstance.GetType());
             
             SqlAction(command =>
             {
                 command.CommandText = "DELETE FROM Relation WHERE Parent = @parent AND ParentType = @parentType AND Child = @child AND ChildType = @childType";
-                command.Parameters.AddWithValue("@parent", parentDef.GetId(parent));
+                command.Parameters.AddWithValue("@parent", parentDef.GetId(parentInstance));
                 command.Parameters.AddWithValue("@parentType", parentDef.Name);
-                command.Parameters.AddWithValue("@child", childDef.GetId(child));
+                command.Parameters.AddWithValue("@child", childDef.GetId(childInstance));
                 command.Parameters.AddWithValue("@childType", childDef.Name);
                 command.ExecuteNonQuery();
             });
@@ -303,7 +311,8 @@ namespace PoorMan.KeyValueStore
 
         public List<TC> GetChildren<TP, TC>(TP parent)
         {
-            var id = GetDefinition(parent.GetType()).GetId(parent);
+            var parentInstance = GetInstance(parent);
+            var id = GetDefinition(parentInstance.GetType()).GetId(parent);
             var result = GetChildren(typeof (TC), id);
             return result.Select(x => (TC) x).ToList();
         }
