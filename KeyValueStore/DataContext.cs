@@ -2,11 +2,8 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Xml;
 using System.Xml.Linq;
 using Castle.DynamicProxy;
 using Newtonsoft.Json;
@@ -117,7 +114,7 @@ namespace PoorMan.KeyValueStore
                 {
                     command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = markup;
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = markup;
                     command.Parameters.AddWithValue("@type", GetDefinition(document.GetType()).Name);
                     command.ExecuteNonQuery();
                 }));
@@ -136,7 +133,7 @@ namespace PoorMan.KeyValueStore
                 {
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = markup;
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = markup;
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
@@ -160,7 +157,7 @@ namespace PoorMan.KeyValueStore
                                        "WHEN NOT MATCHED THEN INSERT (Id, Value, Type, LastUpdated) VALUES(source.Id, source.Value, source.Type, source.LastUpdated);";
                     command.CommandText = sql;
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = markup;
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = markup;
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
