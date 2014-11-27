@@ -90,12 +90,12 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        private void Serialize(object obj, Action<SqlXml> action)
+        private void Serialize(object obj, Action<string> action)
         {
             using (var stream = new MemoryStream())
             {
                 GetDefinition(obj.GetType()).Serializer.Serialize(stream, obj);
-                action(new SqlXml(stream));
+                action(Encoding.UTF8.GetString(stream.GetBuffer()));
             }
         }
 
@@ -113,11 +113,11 @@ namespace PoorMan.KeyValueStore
             var id = GetDefinition(document.GetType()).GetId(document);
 
             SqlAction(command => 
-                Serialize(document, sqlXml => 
+                Serialize(document, markup => 
                 {
                     command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
+                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = markup;
                     command.Parameters.AddWithValue("@type", GetDefinition(document.GetType()).Name);
                     command.ExecuteNonQuery();
                 }));
@@ -132,11 +132,11 @@ namespace PoorMan.KeyValueStore
             var id = GetDefinition(instance.GetType()).GetId(instance);
 
             SqlAction(command =>
-                Serialize(instance, sqlXml =>
+                Serialize(instance, markup =>
                 {
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
+                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = markup;
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
@@ -160,7 +160,7 @@ namespace PoorMan.KeyValueStore
                                        "WHEN NOT MATCHED THEN INSERT (Id, Value, Type, LastUpdated) VALUES(source.Id, source.Value, source.Type, source.LastUpdated);";
                     command.CommandText = sql;
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.Xml).Value = sqlXml;
+                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = sqlXml;
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }

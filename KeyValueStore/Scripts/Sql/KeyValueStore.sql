@@ -6,7 +6,7 @@ BEGIN
 	CREATE TABLE [dbo].[KeyValueStore]
 	(
 		[Id] NVARCHAR(50) NOT NULL, 
-		[Value] XML NOT NULL, 
+		[Value] NVARCHAR(MAX) NOT NULL, 
 		[Type] NVARCHAR(150) NOT NULL,
 		[RowId] ROWVERSION NOT NULL,     
 		[LastUpdated] DATETIME2 NOT NULL,
