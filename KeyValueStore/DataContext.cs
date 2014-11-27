@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml;
 using Castle.DynamicProxy;
 
@@ -98,9 +99,12 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        private object Deserialize(XmlReader reader, Type type)
+        private object Deserialize(string str, Type type)
         {
-            return GetDefinition(type).Serializer.Deserialize(reader);
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(str)))
+            {
+                return GetDefinition(type).Serializer.Deserialize(stream);
+            }
         }
         
         public void Insert<T>(T document) where T : class
@@ -196,8 +200,8 @@ namespace PoorMan.KeyValueStore
                 if (!reader.Read())
                     return null;
 
-                return new Tuple<XmlReader, string>(
-                    reader.GetXmlReader(reader.GetOrdinal("Value")),
+                return new Tuple<string, string>(
+                    reader.GetString(reader.GetOrdinal("Value")),
                     reader.GetString(reader.GetOrdinal("Type")));
             });
 
@@ -287,10 +291,10 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@parent", parentId);
                 var reader = command.ExecuteReader();
 
-                var list = new List<Tuple<XmlReader, string>>();
+                var list = new List<Tuple<string, string>>();
                 while (reader.Read())
                 {
-                    list.Add(new Tuple<XmlReader, string>(reader.GetXmlReader(reader.GetOrdinal("Value")), reader.GetString(reader.GetOrdinal("Type"))));
+                    list.Add(new Tuple<string, string>(reader.GetString(reader.GetOrdinal("Value")), reader.GetString(reader.GetOrdinal("Type"))));
                 }
 
                 return list.Select(x => new
@@ -325,11 +329,11 @@ namespace PoorMan.KeyValueStore
                 command.Parameters.AddWithValue("@type", GetDefinition(typeof(T)).Name);
                 var reader = command.ExecuteReader();
 
-                var values = new List<Tuple<XmlReader, string>>();
+                var values = new List<Tuple<string, string>>();
                 while (reader.Read())
                 {
-                    values.Add(new Tuple<XmlReader, string>(
-                        reader.GetXmlReader(reader.GetOrdinal("Value")),
+                    values.Add(new Tuple<string, string>(
+                        reader.GetString(reader.GetOrdinal("Value")),
                         reader.GetString(reader.GetOrdinal("Type"))));
                 }
 
