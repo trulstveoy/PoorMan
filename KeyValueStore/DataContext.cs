@@ -7,7 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 using Castle.DynamicProxy;
+using Newtonsoft.Json;
+using Formatting = Newtonsoft.Json.Formatting;
 
 namespace PoorMan.KeyValueStore
 {
@@ -92,19 +95,16 @@ namespace PoorMan.KeyValueStore
 
         private void Serialize(object obj, Action<string> action)
         {
-            using (var stream = new MemoryStream())
-            {
-                GetDefinition(obj.GetType()).Serializer.Serialize(stream, obj);
-                action(Encoding.UTF8.GetString(stream.GetBuffer()));
-            }
+            var json = JsonConvert.SerializeObject(obj);
+            var xDoc = JsonConvert.DeserializeXNode(json, "root");
+            action(xDoc.ToString());
         }
 
         private object Deserialize(string str, Type type)
         {
-            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(str)))
-            {
-                return GetDefinition(type).Serializer.Deserialize(stream);
-            }
+            var xDocument = XDocument.Parse(str);
+            var json = JsonConvert.SerializeXNode(xDocument, Formatting.None, true);
+            return JsonConvert.DeserializeObject(json, type);
         }
         
         public void Insert<T>(T document) where T : class
@@ -152,7 +152,7 @@ namespace PoorMan.KeyValueStore
             var id = GetDefinition(instance.GetType()).GetId(instance);
 
             SqlAction(command =>
-                Serialize(instance, sqlXml =>
+                Serialize(instance, markup =>
                 {
                     const string sql = "MERGE INTO KeyValueStore AS target USING (VALUES(@id, @value, @type, SYSDATETIME())) AS source (Id, Value, Type, LastUpdated) " +
                                        "ON source.Id = target.Id AND source.Type = target.Type " +
@@ -160,7 +160,7 @@ namespace PoorMan.KeyValueStore
                                        "WHEN NOT MATCHED THEN INSERT (Id, Value, Type, LastUpdated) VALUES(source.Id, source.Value, source.Type, source.LastUpdated);";
                     command.CommandText = sql;
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = sqlXml;
+                    command.Parameters.Add("@value", SqlDbType.NVarChar).Value = markup;
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
