@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using KeyValueStore.Tests.Dto;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PoorMan.KeyValueStore;
@@ -16,6 +17,10 @@ namespace KeyValueStore.Tests
 
             var id = Guid.NewGuid();
             var challenge = new SerializerChallenge {Id = id,  Text = "abc", Text2 = "cde"};
+            challenge.Content = new Content();
+            challenge.Content.Text = "def";
+            challenge.Content.InnerContents = new List<InnerContent>();
+            challenge.Content.InnerContents.Add(new InnerContent {Prop1 = "a", Prop2 = "b"});
             
             context.Insert(challenge);
 

@@ -90,11 +90,11 @@ namespace PoorMan.KeyValueStore
             }
         }
 
-        private void Serialize(object obj, Action<string> action)
+        private string Serialize(object obj)
         {
             var json = JsonConvert.SerializeObject(obj);
-            var xDoc = JsonConvert.DeserializeXNode(json, "root");
-            action(xDoc.ToString());
+            var xDoc = JsonConvert.DeserializeXNode(json, "root", true);
+            return xDoc.ToString();
         }
 
         private object Deserialize(string str, Type type)
@@ -110,14 +110,13 @@ namespace PoorMan.KeyValueStore
             var id = GetDefinition(document.GetType()).GetId(document);
 
             SqlAction(command => 
-                Serialize(document, markup => 
                 {
                     command.CommandText = "INSERT INTO KeyValueStore (Id, Value, Type, LastUpdated) VALUES(@id, @value, @type, SYSDATETIME())";
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.Xml).Value = markup;
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = Serialize(document);
                     command.Parameters.AddWithValue("@type", GetDefinition(document.GetType()).Name);
                     command.ExecuteNonQuery();
-                }));
+                });
         }
 
         public void Update<T>(T document) where T : class
@@ -129,15 +128,14 @@ namespace PoorMan.KeyValueStore
             var id = GetDefinition(instance.GetType()).GetId(instance);
 
             SqlAction(command =>
-                Serialize(instance, markup =>
                 {
                     command.CommandText = "UPDATE KeyValueStore SET Value = @value, Type = @type, LastUpdated = SYSDATETIME() WHERE Id = @id AND type = @type";
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.Xml).Value = markup;
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = Serialize(instance);
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
-            ));
+            );
         }
 
         public void Upsert<T>(T document) where T : class
@@ -149,7 +147,6 @@ namespace PoorMan.KeyValueStore
             var id = GetDefinition(instance.GetType()).GetId(instance);
 
             SqlAction(command =>
-                Serialize(instance, markup =>
                 {
                     const string sql = "MERGE INTO KeyValueStore AS target USING (VALUES(@id, @value, @type, SYSDATETIME())) AS source (Id, Value, Type, LastUpdated) " +
                                        "ON source.Id = target.Id AND source.Type = target.Type " +
@@ -157,11 +154,11 @@ namespace PoorMan.KeyValueStore
                                        "WHEN NOT MATCHED THEN INSERT (Id, Value, Type, LastUpdated) VALUES(source.Id, source.Value, source.Type, source.LastUpdated);";
                     command.CommandText = sql;
                     command.Parameters.AddWithValue("@id", id);
-                    command.Parameters.Add("@value", SqlDbType.Xml).Value = markup;
+                    command.Parameters.Add("@value", SqlDbType.Xml).Value = Serialize(instance);
                     command.Parameters.AddWithValue("@type", GetDefinition(instance.GetType()).Name);
                     command.ExecuteNonQuery();
                 }
-            ));
+            );
         }
 
         private static object GetInstance(object document)
