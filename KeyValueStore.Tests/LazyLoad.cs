@@ -29,6 +29,14 @@ namespace KeyValueStore.Tests
             var result = datacontext.Read<Order>(id);
             List<Product> products = result.Products;
             Assert.AreEqual(2, products.Count);
+
+            result.Text = "def";
+            datacontext.Upsert(result);
+
+            var result2 = datacontext.Read<Order>(id);
+            Assert.AreEqual(2, result2.Products.Count);
+            Assert.AreEqual("def", result2.Text);
+
         }
 
         [TestMethod]

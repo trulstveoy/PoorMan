@@ -7,7 +7,6 @@ using System.Linq;
 using System.Xml.Linq;
 using Castle.DynamicProxy;
 using Newtonsoft.Json;
-using Formatting = Newtonsoft.Json.Formatting;
 
 namespace PoorMan.KeyValueStore
 {
@@ -92,7 +91,9 @@ namespace PoorMan.KeyValueStore
 
         private string Serialize(object obj)
         {
-            var json = JsonConvert.SerializeObject(obj);
+            var settings = new JsonSerializerSettings {ContractResolver = new CustomContractResolver()};
+            
+            var json = JsonConvert.SerializeObject(obj, Formatting.None, settings);
             var xDoc = JsonConvert.DeserializeXNode(json, "root", true);
             return xDoc.ToString();
         }

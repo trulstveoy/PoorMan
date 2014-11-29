@@ -54,7 +54,7 @@ namespace PoorMan.KeyValueStore
         {
             var propertyInfo = type.GetProperties().FirstOrDefault(x => x.CustomAttributes.Any(attr => attr.AttributeType == typeof(IdAttribute)));
             if (propertyInfo == null)
-                throw new InvalidOperationException("Missing Id attribute for document");
+                throw new InvalidOperationException(string.Format("Missing Id attribute for document {0}", type.Name));
             if (!new[] { typeof(Guid), typeof(string), typeof(long), typeof(int) }.Contains(propertyInfo.PropertyType))
                 throw new InvalidOperationException(string.Format("Id for type {0} has to be either Guid, string, long or int", type.FullName));
 
